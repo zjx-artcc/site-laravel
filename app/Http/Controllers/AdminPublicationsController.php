@@ -13,7 +13,7 @@ class AdminPublicationsController extends Controller
     private const DISK = 'public';
     private const DIRECTORY = 'documents';
     private const ALLOWED_MIMES = 'pdf,doc,docx,xls,xlsx,ppt,pptx,png,jpg,jpeg,zip,gz,7z,json,xml,txt';
-    private const MAX_KB = 20480;
+    private const MAX_KB = 10480;
 
     private const VIEWABLE_EXTENSIONS = ['pdf', 'png', 'jpg', 'jpeg', 'txt'];
 
