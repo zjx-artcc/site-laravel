@@ -3,7 +3,7 @@ name: Deploy to Staging
 on:
   workflow_dispatch:
   push:
-    branches: [ "develop" ]
+    branches: [ "main" ]
 
 env:
   REGISTRY: ghcr.io
@@ -32,28 +32,3 @@ jobs:
           file: ./deploy/Dockerfile
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-
-  deploy:
-    needs: build
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Log in to Registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-      # Create the .env file dynamically from Secrets
-      - name: Setup envionment
-        run: |
-            echo "${{ secrets.STAGING_ENV_FILE }}" > .env
-
-      - name: Deploy Staging
-        run: |
-          # Pull the image we just built
-          IMAGE_TAG="${IMAGE_TAG}" docker compose -p staging --env-file .env -f deploy/docker-compose.yml pull
-          
-          # Start the containers using the fresh .env
-          IMAGE_TAG="${IMAGE_TAG}" docker compose -p staging --env-file .env -f deploy/docker-compose.yml up -d
-          
-          # Clean up old images to save disk space
-          docker image prune -f

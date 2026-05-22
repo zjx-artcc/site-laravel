@@ -1,19 +1,12 @@
 name: Deploy to Production
 
 on:
-  push:
-    branches: [ "main" ]
   workflow_dispatch:
-    inputs:
-      image_tag:
-        description: "Image tag to deploy (e.g., master, staging, sha)"
-        required: false
-        default: "master"
     
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  IMAGE_TAG: master
+  IMAGE_TAG: production
 
 jobs:
   build:
@@ -35,26 +28,4 @@ jobs:
           context: .
           file: ./deploy/Dockerfile
           push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:master
-
-  deploy:
-    needs: build
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Log in to Registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-      - name: Setup envionment
-        run: |
-            echo "${{ secrets.PROD_ENV_FILE }}" > .env
-
-      - name: Deploy Production
-        run: |
-          IMAGE_TAG="${IMAGE_TAG}" docker compose -p production --env-file .env -f deploy/docker-compose.yml pull
-          IMAGE_TAG="${IMAGE_TAG}" docker compose -p production --env-file .env -f deploy/docker-compose.yml up -d
-          
-          docker image prune -f
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
