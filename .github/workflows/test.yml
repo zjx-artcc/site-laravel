@@ -8,8 +8,8 @@ on:
 jobs:
   test-in-docker:
     # Works on 'ubuntu-latest' OR 'self-hosted'
-    runs-on: ubuntu-latest 
-    
+    runs-on: ubuntu-latest
+    environment: Testing
     steps:
       - uses: actions/checkout@v4
 
