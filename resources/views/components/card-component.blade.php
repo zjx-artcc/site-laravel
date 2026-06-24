@@ -1,6 +1,6 @@
-<div class="card border-2 border-base-300 p-5 {{}}">
+<div class="card border-1 border-base-300 p-5 {{}}">
     @unless(is_null($title ?? null))
-        <h1 class="card-title text-2xl font-light">{{ $title }}</h1>
+        <h1 class="card-title text-2xl">{{ $title }}</h1>
     @endunless
 
     <div @class('card-body p-0')>
