@@ -1,6 +1,8 @@
 @import 'tailwindcss';
 @import '@fortawesome/fontawesome-free/css/all.min.css';
 
+[x-cloak] { display: none !important; }
+
 @source '../views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 
@@ -82,6 +84,7 @@
     --size-selector: 0.25rem;
     --size-field: 0.25rem;
     --border: 1px;
+    --font: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {

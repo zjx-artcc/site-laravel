@@ -1,5 +1,6 @@
 @unless(sizeof($trainingAssignments) == 0)
-    <table class='table table-zebra table-md w-max border-2 border-base-300 mt-5'>
+    <div>
+    <table class='table table-zebra table-md border-2 border-base-300 mt-5 w-full'>
         <thead>
         <tr>
             <th>Student CID</th>
@@ -56,7 +57,7 @@
                         <li>
                             <details>
                                 <summary>Actions</summary>
-                                <ul class="bg-base-100 text-base-content rounded-t-none p-2 z-10">
+                                <ul class="bg-base-100 text-base-content rounded-t-none p-2 z-10 min-w-max">
                                     @haspermission('claim students')
                                     @if (is_null($trainingAssignment->instructor))
                                         <li>
@@ -97,6 +98,7 @@
         @endforeach
         </tbody>
     </table>
+    </div>
 @else
     <h1>There are no training assignments.</h1>
 @endunless

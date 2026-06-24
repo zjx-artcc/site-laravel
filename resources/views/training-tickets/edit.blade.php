@@ -3,9 +3,9 @@
 @section('title', 'Edit Training Ticket - #'.$trainingTicket->id)
 
 @section('body')
-    <div class="card card-body bg-base-300 max-w-150">
+    <div class="card card-body bg-base-300 w-full max-w-3xl">
         <a
-            class="absolute top-5 right-5 link"
+            class="link mb-3 sm:absolute sm:top-5 sm:right-5"
             href="{{route('training-tickets.show', ['ticket' => $trainingTicket->id])}}"
         >
             View

@@ -20,11 +20,11 @@
                 @endif
             </div>
 
-            <img class='col-span-2 border-2 w-50 h-50 mb-5 rounded-full' src="{{ asset($user->profile_image_route) }}" alt=""/>
-            <input type="file" name="image" class="file-input file-input-bordered w-full rounded-full max-w-xs mb-5" />
+            <img class='col-span-2 border-2 w-24 h-24 sm:w-36 sm:h-36 mb-5 rounded-full' src="{{ asset($user->profile_image_route) }}" alt=""/>
+            <input type="file" name="image" class="file-input file-input-bordered w-full max-w-xs mb-5" />
 
-            <div class="grid grid-cols-2 gap-x-20">
-                <a href="{{ route('users.show', $user) }}" class="link absolute top-5 right-5">View User</a>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
+                <a href="{{ route('users.show', $user) }}" class="link mb-3 sm:absolute sm:top-5 sm:right-5">View User</a>
                 <x-label label='CID' :value="$user->id"/>
                 <x-label label='Rating' :value="$user->rating->mapToString()"/>
 
@@ -34,7 +34,7 @@
                         type="text"
                         name='operatingInitials'
                         maxlength='2'
-                        class='input input-md w-100'
+                        class='input input-md w-full'
                         @disabled(!auth()->user()->hasPermissionTo('manage users'))
                         value={{ old('operatingInitials', $user->operating_initials) }}>
                     </x-label-slot>

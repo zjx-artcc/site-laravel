@@ -4,8 +4,7 @@
     ondragleave="onLivewireCalendarEventDragLeave(event, '{{ $componentId }}', '{{ $day }}', '{{ $dragAndDropClasses }}');"
     ondragover="onLivewireCalendarEventDragOver(event);"
     ondrop="onLivewireCalendarEventDrop(event, '{{ $componentId }}', '{{ $day }}', {{ $day->year }}, {{ $day->month }}, {{ $day->day }}, '{{ $dragAndDropClasses }}');"
-    class="flex-1 h-40 lg:h-48 border border-gray-200 -mt-px -ml-px"
-    style="min-width: 10rem;">
+    class="flex-1 min-h-24 sm:min-h-32 md:min-h-40 lg:min-h-48 bg-white border border-gray-300 -mt-px -ml-px">
 
     {{-- Wrapper for Drag and Drop --}}
     <div
@@ -16,14 +15,14 @@
             @if($dayClickEnabled)
                 wire:click="onDayClick({{ $day->year }}, {{ $day->month }}, {{ $day->day }})"
             @endif
-            class="w-full h-full p-2 {{ $dayInMonth ? $isToday ? 'bg-yellow-100' : ' bg-white ' : 'bg-gray-100' }} flex flex-col">
+            class="w-full h-full p-2 lg:p-1 {{ $dayInMonth ? $isToday ? 'bg-yellow-100' : ' bg-white ' : 'bg-gray-100' }} flex flex-col">
 
             {{-- Number of Day --}}
-            <div class="flex items-center">
-                <p class="text-sm {{ $dayInMonth ? ' font-medium ' : '' }}">
+            <div class="flex items-center gap-2">
+                <p class="text-xs sm:text-sm {{ $dayInMonth ? ' font-medium ' : '' }}">
                     {{ $day->format('j') }}
                 </p>
-                <p class="text-xs text-gray-600 ml-4">
+                <p class="text-[10px] sm:text-xs text-gray-600">
                     @if($events->isNotEmpty())
                         {{ $events->count() }} {{ Str::plural('event', $events->count()) }}
                     @endif
@@ -31,8 +30,8 @@
             </div>
 
             {{-- Events --}}
-            <div class="p-2 my-2 flex-1 overflow-y-auto">
-                <div class="grid grid-cols-1 grid-flow-row gap-2">
+            <div class="my-1 px-1 lg:my-0 lg:px-0">
+                <div class="grid grid-cols-1 grid-flow-row gap-1">
                     @foreach($events as $event)
                         <div
                             @if($dragAndDropEnabled)

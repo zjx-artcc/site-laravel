@@ -7,6 +7,7 @@
 
     <x-search/>
 
+    <div class="overflow-x-auto">
     <table class="table table-zebra mt-2">
         <thead>
             <tr>
@@ -58,4 +59,5 @@
             @endforeach
         </tbody>
     </table>
+    </div>
 @endsection

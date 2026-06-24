@@ -91,12 +91,14 @@ class TrainingTicketController extends Controller
             ->with('success', 'Training ticket successfully created.');
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(string $id)
     {
         $trainingTicket = TrainingTicket::findOrFail($id);
+
+        if (Auth::id() !== $trainingTicket->user_id && !Auth::user()->hasRole('training')) {
+            abort(403);
+        }
+
         return view('training-tickets.show', compact('trainingTicket'));
     }
 

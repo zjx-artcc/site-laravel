@@ -130,5 +130,6 @@ return [
     'vatsim_auth_url' => env('VATSIM_AUTH_URL'),
     'vatusa_facility' => env('VATUSA_FACILITY'),
     'vatsim_api_url' => env('VATSIM_API_URL'),
+    'stats_sim_api_key' => env('STATS_SIM_API_KEY'),
     'training_request_webhook_url' => env('TRAINING_REQUEST_WEBHOOK_URL'),
 ];

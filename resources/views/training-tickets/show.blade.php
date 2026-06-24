@@ -1,10 +1,11 @@
-@extends('layouts.admin')
+@extends(Auth::user()->hasRole('training') ? 'layouts.admin' : 'layouts.main')
 
 @section('title', 'Training Ticket - #'.$trainingTicket->id)
 
 @section('body')
-    <div class="card card-body bg-base-300 w-max">
-        <div class="grid grid-cols-2 w-max gap-x-10">
+    <a href="{{ Auth::user()->hasRole('training') ? route('training-tickets.index') : route('users.show.training-tickets', $trainingTicket->user_id) }}" class="btn btn-ghost mb-4">&larr; Back</a>
+    <div class="card card-body bg-base-300 w-full max-w-3xl">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
             <x-label label="Session Date" :value="$trainingTicket->session_start"/>
             <x-label label="Session Duration" :value="$trainingTicket->duration"/>
             <x-label label="Student" :value="$trainingTicket->student->first_name.' '.$trainingTicket->student->last_name"/>
@@ -15,7 +16,7 @@
             </x-label-slot>
         </div>
         <x-label-slot label="Notes">
-            <div id="notes" class='bg-white p-2 rounded-md min-h-50 w-125'>{!! $trainingTicket->notes !!}</div>
+            <div id="notes" class='bg-white p-2 rounded-md min-h-50 w-full'>{!! $trainingTicket->notes !!}</div>
         </x-label-slot>
     </div>
 @endsection

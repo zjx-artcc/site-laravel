@@ -5,7 +5,7 @@
 
             <form action="{{route('training-assignment.create')}}"
                     method="POST"
-                    class="flex flex-col w-max mt-5"
+                    class="flex flex-col w-full sm:w-max mt-5"
             >
                 @csrf
                 <label for="trainingType" class="label">Training Type</label>
@@ -32,7 +32,8 @@
     @endif
 @endif
 
-<table class='table table-zebra table-md w-max mt-5'>
+<div class="overflow-x-auto">
+<table class='table table-zebra table-md mt-5'>
         <thead>
         <tr>
             <th>Instructor</th>
@@ -72,5 +73,6 @@
             @endunless
         </tbody>
     </table>
+</div>
 
 {{ $trainingAssignments->links() }}
