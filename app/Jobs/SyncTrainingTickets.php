@@ -28,11 +28,19 @@ class SyncTrainingTickets implements ShouldQueue
     public function handle(): void
     {
         // https://api.vatusa.net/v2/training/record/{recordID}
-        $unsyncedTickets = TrainingTicket::where(['vatusa_synced' => false]);
+        $unsyncedTickets = TrainingTicket::where(['vatusa_synced' => false])->get();
 
-        foreach ($unsyncedTickets->get() as $ticket) {
+        foreach ($unsyncedTickets as $ticket) {
             $this->createVatusaTrainingTicket($ticket);
         }
+
+        $remaining = TrainingTicket::where(['vatusa_synced' => false])->count();
+
+        activity()->withProperties(['attributes' => [
+            'tickets_pending' => $unsyncedTickets->count(),
+            'tickets_synced' => $unsyncedTickets->count() - $remaining,
+            'tickets_failed' => $remaining,
+        ]])->log('Training ticket sync complete');
     }
 
     private function createVatusaTrainingTicket(mixed $ticket)

@@ -17,6 +17,9 @@ need to add auditing to a model or work on the audit-log viewer.
   `Spatie\Activitylog\Traits\LogsActivity` trait and defining
   `getActivitylogOptions()`, which declares exactly which attributes to log via
   `LogOptions::defaults()->logOnly([...])`.
+- **Scheduled jobs write entries directly** with Spatie's `activity()` helper
+  rather than a model trait, so a sync that ran successfully is visible in the
+  viewer and not only in the log file. See [Job entries](#job-entries).
 - **The viewer is admin-only** and lets staff filter by controller (CID) and by
   record type, then either browse the paginated log or stream a CSV export.
 
@@ -47,6 +50,34 @@ Changes made through the query builder rather than Eloquent — `upsert()`,
 `Model::where(...)->update(...)` — do **not** fire model events and are therefore
 never recorded. This is why roster membership changes do not appear here:
 `SyncRoster` uses `User::upsert()` and a mass `update()`.
+
+### Job entries
+
+Sync jobs previously logged only on failure, so a job that had silently stopped
+running looked the same as one that ran and found nothing to do. Each now writes
+a completion entry with Spatie's `activity()` helper:
+
+```php
+activity()->withProperties(['attributes' => [
+    'sessions_received' => count($sessions),
+    'sessions_stored' => $stored,
+]])->log('Statsim sync complete');
+```
+
+| Job | Entry | Notes |
+| --- | --- | --- |
+| `SyncRoster` | `Roster sync complete` | Plus one `Removed from roster` entry per departing controller, with that user as the subject |
+| `SyncStatsimSessions` | `Statsim sync complete` | Month, sessions received/stored, controllers updated |
+| `SyncTrainingTickets` | `Training ticket sync complete` | Tickets pending/synced/failed |
+
+These entries have **no `event`** (the viewer falls back to `description` for
+the action badge), **no causer** (they run unattended, so the Who column shows
+"System"), and — except for roster removals — **no subject**, so the Record
+column is empty and they are not reachable via the record-type filter.
+
+`UpdateOnlineControllers` deliberately writes **no** audit entry: it runs every
+minute and would add ~1,400 rows a day. Its failures go to the application log
+at `error` level.
 
 ### The `activity_log` table
 
@@ -107,6 +138,21 @@ which flattens the `properties` diff into `Field: from -> to` (for updates) or
 `Field: value` (otherwise). `subjectName()` resolves the subject's display name
 using Laravel's `rescue()` so a missing/renamed subject class does not break the
 export; causers with no record are shown as `System`.
+
+## Debug logging
+
+The audit log records *what* happened. To see *why* a sync behaved as it did,
+turn on debug output in the application log:
+
+```dotenv
+LOG_LEVEL=debug
+```
+
+`SyncRoster` logs the endpoint it is calling and the membership diff
+(`roster_size`, `departed_cids`); `SyncStatsimSessions` logs the prefixes and
+rostered-controller count it filters against. This goes to whatever `LOG_STACK`
+is shipping to, not to the audit log. Set it back to `info` afterwards — if the
+`discord` channel is in `LOG_STACK`, debug output ships there too.
 
 ## Permissions / middleware
 
