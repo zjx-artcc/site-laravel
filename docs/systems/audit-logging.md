@@ -7,6 +7,9 @@ changes using `spatie/laravel-activitylog`, and how staff view and export that
 trail from the admin area. It is written for developers and contributors who
 need to add auditing to a model or work on the audit-log viewer.
 
+For the application log — scheduled-job run logging, debug logging, and the
+channels they are written to — see [logging.md](logging.md).
+
 ## Key concepts
 
 - **Activity log entries** are rows in the `activity_log` table, each capturing a
@@ -17,6 +20,12 @@ need to add auditing to a model or work on the audit-log viewer.
   `Spatie\Activitylog\Traits\LogsActivity` trait and defining
   `getActivitylogOptions()`, which declares exactly which attributes to log via
   `LogOptions::defaults()->logOnly([...])`.
+- **Privileged staff actions are recorded explicitly**, not via a model trait,
+  by `App\Support\PrivilegedAction::record()`. These entries use a custom
+  `event` (`visitor.approved`, `solo-cert.revoked`, …) rather than
+  created/updated/deleted, and appear in the same viewer. See
+  [logging.md](logging.md#privileged-action-logging) for the full list and how
+  to add one.
 - **The viewer is admin-only** and lets staff filter by controller (CID) and by
   record type, then either browse the paginated log or stream a CSV export.
 
@@ -30,9 +39,24 @@ need to add auditing to a model or work on the audit-log viewer.
 | `TrainingAssignment` | `app/Models/TrainingAssignment.php` | `user_id`, `instructor_id`, `status` |
 | `TrainingTicket` | `app/Models/TrainingTicket.php` | `user_id`, `instructor_id`, `session_date`, `duration`, `movements`, `score`, `notes`, `location`, `ots_status` |
 | `StatisticsPrefixes` | `app/Models/StatisticsPrefixes.php` | `name` |
+| `Publication` | `app/Models/Publication.php` | `name`, `description`, `version`, `publication_category_id`, `original_filename` |
+| `PublicationCategory` | `app/Models/PublicationCategory.php` | `title`, `description`, `display_order`, `show_in_nav` |
 
-All four use `LogOptions::defaults()`, so only the listed attributes are logged
-and (by Spatie's defaults) empty diffs are not recorded.
+All use `LogOptions::defaults()`, so only the listed attributes are logged and
+(by Spatie's defaults) empty diffs are not recorded. The two publication models
+additionally call `logOnlyDirty()`.
+
+### Privileged action entries
+
+Entries written by `App\Support\PrivilegedAction` share the same table but are
+shaped slightly differently:
+
+- `event` is the action name (e.g. `visitor.approved`), so the viewer's badge
+  falls through its `match` to `badge-ghost`.
+- `properties['attributes']` holds the detail passed at the call site and is
+  rendered as `Field: value` (there is no `old`, since these are not diffs).
+- `properties['context']` holds request metadata — `source`, `ip`, `route`,
+  `method` — which is stored but **not** rendered by the viewer or export.
 
 ### The `activity_log` table
 
@@ -120,6 +144,7 @@ So a viewer must have both `view dashboard` and `view audit logs`.
 | `app/Models/TrainingAssignment.php` | `getActivitylogOptions()` for training assignments |
 | `app/Models/TrainingTicket.php` | `getActivitylogOptions()` for training tickets |
 | `app/Models/StatisticsPrefixes.php` | `getActivitylogOptions()` for statistics prefixes |
+| `app/Support/PrivilegedAction.php` | Records privileged staff actions to this table and the application log |
 | `database/migrations/2025_11_11_035813_create_activity_log_table.php` | Base `activity_log` table |
 | `database/migrations/2025_11_11_035814_add_event_column_to_activity_log_table.php` | Adds `event` column |
 | `database/migrations/2025_11_11_035815_add_batch_uuid_column_to_activity_log_table.php` | Adds `batch_uuid` column |
@@ -140,3 +165,7 @@ So a viewer must have both `view dashboard` and `view audit logs`.
   user as subject/causer.
 - **Timestamps are emitted in UTC/Zulu** in the export (`created_at->utc()`),
   regardless of the app timezone.
+- **Privileged action entries are best-effort.** `PrivilegedAction` swallows a
+  failed `activity_log` write so the staff action itself still succeeds, logging
+  the miss at `critical` to the application log. The database trail can
+  therefore have gaps that the application log does not.

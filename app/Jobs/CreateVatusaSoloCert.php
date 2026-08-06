@@ -35,9 +35,19 @@ class CreateVatusaSoloCert implements ShouldQueue
         ]);
 
         if ($request->failed()) {
-            Log::error('Failed to push solo cert to VATUSA for user '.$this->soloCert->user_id.'. Response: '.$request->body());
+            Log::error('Failed to push solo cert to VATUSA', [
+                'solo_cert_id' => $this->soloCert->id,
+                'user_id' => $this->soloCert->user_id,
+                'position' => $this->soloCert->position,
+                'status' => $request->status(),
+                'body' => $request->body(),
+            ]);
         } else {
-            Log::info('Successfully pushed solo cert to VATUSA for user '.$this->soloCert->user_id);
+            Log::info('Pushed solo cert to VATUSA', [
+                'solo_cert_id' => $this->soloCert->id,
+                'user_id' => $this->soloCert->user_id,
+                'position' => $this->soloCert->position,
+            ]);
         }
     }
 }

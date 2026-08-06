@@ -5,17 +5,18 @@ namespace App\Jobs;
 use App;
 use App\DTOs\VatusaFacilityInfoDTO;
 use App\DTOs\VatusaRosterUser;
+use App\Jobs\Concerns\LogsJobRun;
 use App\Models\Staff;
 use App\Models\User;
+use App\Support\PrivilegedAction;
 use Http;
 use Illuminate\Contracts\Broadcasting\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Log;
 
 class SyncRoster implements ShouldBeUnique, ShouldQueue
 {
-    use Queueable;
+    use LogsJobRun, Queueable;
 
     /**
      * Create a new job instance.
@@ -26,6 +27,8 @@ class SyncRoster implements ShouldBeUnique, ShouldQueue
     {
         $ROSTER_API_ENDPOINT = config('app.vatusa_api_url').'/v2/facility/'.config('app.vatusa_facility').'/roster/both';
 
+        $this->runDebug('fetching roster from VATUSA', ['endpoint' => $ROSTER_API_ENDPOINT]);
+
         $rosterData = Http::get($ROSTER_API_ENDPOINT, [
             'apikey' => config('app.vatusa_api_key'),
         ]);
@@ -35,6 +38,11 @@ class SyncRoster implements ShouldBeUnique, ShouldQueue
         }
 
         $roster = $rosterData->json();
+
+        // Snapshot membership before the sync so we can report who joined and
+        // who left, rather than just "the sync ran".
+        $before = User::where('rostered', true)->pluck('id')->all();
+
         User::where(['rostered' => true])->update(['rostered' => false]);
 
         for ($i = 0; $i < count($roster['data']); $i++) {
@@ -43,12 +51,47 @@ class SyncRoster implements ShouldBeUnique, ShouldQueue
             User::updateFromVatusa($vatusaUser);
         }
 
+        $after = User::where('rostered', true)->pluck('id')->all();
+
+        $joined = array_values(array_diff($after, $before));
+        $departed = array_values(array_diff($before, $after));
+
+        $this->setMetric('roster_size_reported', count($roster['data']));
+        $this->setMetric('roster_size_stored', count($after));
+        $this->setMetric('controllers_joined', count($joined));
+        $this->setMetric('controllers_departed', count($departed));
+
+        $this->runDebug('roster membership diff', [
+            'joined_cids' => $joined,
+            'departed_cids' => $departed,
+        ]);
+
+        $this->recordRosterDepartures($departed);
+
         // Clear hanging OIs
         User::where([
             'rostered' => false,
         ])->update([
             'operating_initials' => null,
         ]);
+    }
+
+    /**
+     * A controller dropping off the roster is a membership removal, so it goes
+     * in the audit trail alongside staff-initiated removals — with no causer,
+     * since VATUSA rather than a staff member made the call.
+     *
+     * @param  array<int, int>  $departedCids
+     */
+    private function recordRosterDepartures(array $departedCids): void
+    {
+        foreach (User::whereIn('id', $departedCids)->get() as $user) {
+            PrivilegedAction::record(PrivilegedAction::ROSTER_USER_REMOVED, $user, [
+                'cid' => $user->id,
+                'name' => $user->name,
+                'reason' => 'no longer present on the VATUSA roster',
+            ]);
+        }
     }
 
     private function syncRosteredRole()
@@ -62,6 +105,9 @@ class SyncRoster implements ShouldBeUnique, ShouldQueue
                 $user->removeRole('rostered');
             }
         }
+
+        $this->setMetric('rostered_role_synced', $users->count());
+        $this->runDebug('rostered role synced');
     }
 
     private function clearUserRoles()
@@ -77,8 +123,22 @@ class SyncRoster implements ShouldBeUnique, ShouldQueue
     {
         $staffMembers = Staff::all();
 
+        $this->setMetric('staff_positions', $staffMembers->count());
+
         foreach ($staffMembers as $staff) {
             $user = $staff->user;
+
+            if (! $user) {
+                $this->runWarning('staff position references a user not on the roster', [
+                    'title' => $staff->title_short,
+                    'cid' => $staff->user_id,
+                ]);
+            }
+
+            $this->runDebug('assigning staff roles', [
+                'cid' => $staff->user_id,
+                'title' => $staff->title_short,
+            ]);
 
             switch ($staff->title_short) {
                 case 'ATM':
@@ -111,6 +171,8 @@ class SyncRoster implements ShouldBeUnique, ShouldQueue
     private function updateStaffMembers()
     {
         $FACILITY_INFO_ENDPOINT = config('app.vatusa_api_url').'/v2/facility/'.config('app.vatusa_facility');
+        $this->runDebug('fetching facility info from VATUSA', ['endpoint' => $FACILITY_INFO_ENDPOINT]);
+
         $facilityInfo = Http::get($FACILITY_INFO_ENDPOINT, [
             'apikey' => config('app.vatusa_api_key'),
         ]);
@@ -134,6 +196,8 @@ class SyncRoster implements ShouldBeUnique, ShouldQueue
      */
     public function handle(): void
     {
+        $this->startRun(['facility' => config('app.vatusa_facility')]);
+
         try {
             $this->updateRoster();
 
@@ -155,13 +219,11 @@ class SyncRoster implements ShouldBeUnique, ShouldQueue
 
             $this->syncRosteredRole();
 
-            Log::info('Roster sync completed successfully.');
+            $this->finishRun();
         } catch (\Exception $e) {
-            // Log error
-            Log::error('Error syncing roster: '.$e->getMessage().'\n'.$e->getTraceAsString(), [
+            $this->failRun($e, [
                 'url' => config('app.vatusa_api_url').'/v2/facility/'.config('app.vatusa_facility'),
                 'environment' => App::environment(),
-                'exception' => get_class($e),
             ]);
         }
     }

@@ -18,6 +18,7 @@ The site is a VATSIM ARTCC web app built on a conventional server-rendered Larav
 | Auth | Laravel Socialite (VATSIM Connect) | Custom Socialite provider; see [authentication](authentication-authorization.md). |
 | Authorization | `spatie/laravel-permission` | Roles and permissions, enforced with middleware aliases. |
 | Audit logging | `spatie/laravel-activitylog` | See [audit logging](systems/audit-logging.md). |
+| Application logging | Monolog (Laravel `Log`) | Job run summaries, privileged actions, debug mode. See [logging](systems/logging.md). |
 | Search | Laravel Scout | Uses the default `collection` driver (see [Infrastructure drivers](#infrastructure-drivers)). |
 | Testing | Pest 4 (`pestphp/pest: ^4.1`) | With `pest-plugin-laravel` and `pest-plugin-stressless`. |
 
@@ -130,11 +131,18 @@ The scheduler is defined in `routes/console.php` (the console entry registered b
 | --- | --- | --- |
 | `Schedule::job(new SyncRoster())` | `app/Jobs/SyncRoster.php` | Every two hours |
 | `Schedule::job(new UpdateOnlineControllers())` | `app/Jobs/UpdateOnlineControllers.php` | Every minute |
+| `Schedule::call(...)` (named `statsim-sync`) | `app/Jobs/SyncStatsimSessions.php` | Daily at 04:00, for the current and previous month |
 
 `SyncRoster` pulls the controller roster from VATUSA; `UpdateOnlineControllers` refreshes
-who is currently online. Both are covered in [VATSIM integration](vatsim-integration.md)
+who is currently online; `SyncStatsimSessions` backfills controller session statistics.
+The first two are covered in [VATSIM integration](vatsim-integration.md)
 and [roster and membership](systems/roster-and-membership.md). In local/development you can
 trigger these manually via the dev-only `/sync` route.
+
+Every scheduled job emits a run summary — duration and per-run counters — on
+success as well as on failure, so a job that silently stopped running can be
+told apart from one that ran and found nothing to do. See
+[logging](systems/logging.md#job-run-logging).
 
 Because scheduled work is dispatched as queued jobs, a queue worker and the scheduler both
 need to run. `composer run dev` starts `php artisan serve`, `php artisan queue:listen`,
@@ -179,4 +187,5 @@ Each subsystem has its own document. Start here and follow the links:
 | [systems/certifications.md](systems/certifications.md) | Certification facilities, levels, and user certifications. |
 | [systems/users-and-profiles.md](systems/users-and-profiles.md) | User accounts, profiles, and staff directory. |
 | [systems/audit-logging.md](systems/audit-logging.md) | Activity logging with `spatie/laravel-activitylog`. |
+| [systems/logging.md](systems/logging.md) | Application logging: job run summaries, privileged staff actions, and debug mode. |
 | [discrepancies.md](discrepancies.md) | Known inconsistencies, dead code, and follow-ups found while documenting. |

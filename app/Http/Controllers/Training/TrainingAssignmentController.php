@@ -10,9 +10,9 @@ use App\Mail\TrainingAssignmentCreated;
 use App\Mail\TrainingAssignmentUpdated;
 use App\Models\Staff;
 use App\Models\TrainingAssignment;
+use App\Support\PrivilegedAction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class TrainingAssignmentController extends Controller
@@ -118,9 +118,13 @@ class TrainingAssignmentController extends Controller
             Mail::to($trainingAssignment->student->email)->bcc($trainingAssignment->instructor ?? null)->queue(new TrainingAssignmentUpdated($trainingAssignment));
         }
 
-        Log::info('Training assignment updated', [
+        PrivilegedAction::record(PrivilegedAction::TRAINING_ASSIGNMENT_UPDATED, $trainingAssignment, [
             'assignment_id' => $trainingAssignment->id,
-            'updated_by' => $user->id,
+            'student_cid' => $trainingAssignment->user_id,
+            'instructor_cid' => $trainingAssignment->instructor_id,
+            'status' => $trainingAssignment->status,
+            'active' => $trainingAssignment->active,
+            'student_notified' => (bool) ($validated['notifyUser'] ?? false),
         ]);
 
         return redirect()->back()->with('success', 'Training request updated successfully');
@@ -148,6 +152,11 @@ class TrainingAssignmentController extends Controller
 
         Mail::to($assignment->student->email)->bcc($assignment->instructor ?? null)->queue(new TrainingAssignmentUpdated($assignment));
 
+        PrivilegedAction::record(PrivilegedAction::TRAINING_ASSIGNMENT_CLAIMED, $assignment, [
+            'assignment_id' => $assignment->id,
+            'student_cid' => $assignment->user_id,
+        ]);
+
         return redirect()->back()->with('success', 'Training assignment claimed successfully');
     }
 
@@ -164,13 +173,26 @@ class TrainingAssignmentController extends Controller
             return redirect()->back()->with('error', 'Cannot update inactive training assignment.');
         }
 
+        $previousInstructorId = $assignment->instructor_id;
+        $dropped = false;
+
         if ($assignment->instructor_id == $user->id || $user->hasPermissionTo('manage students')) {
             $assignment->update([
                 'instructor_id' => null,
             ]);
+            $dropped = true;
         }
 
         Mail::to($assignment->student->email)->queue(new TrainingAssignmentUpdated($assignment));
+
+        PrivilegedAction::record(PrivilegedAction::TRAINING_ASSIGNMENT_DROPPED, $assignment, [
+            'assignment_id' => $assignment->id,
+            'student_cid' => $assignment->user_id,
+            'previous_instructor_cid' => $previousInstructorId,
+            // The route reports success either way; record whether the
+            // instructor was actually cleared so the trail is not misleading.
+            'instructor_cleared' => $dropped,
+        ]);
 
         return redirect()->back()->with('success', 'Training assignment dropped successfully');
     }
@@ -192,6 +214,13 @@ class TrainingAssignmentController extends Controller
             $assignment->active = false;
             $assignment->status = TrainingStatus::FORFEIT;
             $assignment->save();
+
+            PrivilegedAction::record(PrivilegedAction::TRAINING_ASSIGNMENT_FORFEITED, $assignment, [
+                'assignment_id' => $assignment->id,
+                'student_cid' => $assignment->user_id,
+                'instructor_cid' => $assignment->instructor_id,
+                'self_service' => $assignment->user_id == $user->id,
+            ]);
 
             return redirect()->back()->with('success', 'Training assignment deactivated successfully');
         } else {

@@ -80,6 +80,26 @@ return [
             'replace_placeholders' => true,
         ],
 
+        /*
+        | Always-on debug channel.
+        |
+        | Add this to LOG_STACK to capture debug output (job phase logging,
+        | roster sync detail) in its own rotating file without turning the
+        | main channel down to debug and flooding it. Kept short by default
+        | because debug output is high volume:
+        |
+        |     LOG_STACK=daily,debug
+        |
+        | See docs/systems/logging.md.
+        */
+        'debug' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/debug.log'),
+            'level' => 'debug',
+            'days' => env('LOG_DEBUG_DAYS', 3),
+            'replace_placeholders' => true,
+        ],
+
         'slack' => [
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),

@@ -10,9 +10,9 @@ use App\Mail\VisitorRequestRejected;
 use App\Models\User;
 use App\Models\VisitorRequest;
 use App\Services\VisitingChecklistService;
+use App\Support\PrivilegedAction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class VisitFacilityController extends Controller
@@ -77,7 +77,11 @@ class VisitFacilityController extends Controller
         ]);
 
         Mail::to($visitRequest->user->email)->bcc(['atm@zjxartcc.org', 'datm@zjxartcc.org'])->queue(new VisitorRequestReceived($visitRequest));
-        Log::info('New visit request submitted for user '.$visitRequest->user_id.' by '.Auth::user()->id);
+
+        PrivilegedAction::record(PrivilegedAction::VISITOR_REQUEST_SUBMITTED, $visitRequest, [
+            'visit_request_id' => $visitRequest->id,
+            'cid' => $visitRequest->user_id,
+        ]);
 
         return redirect()->route('visit.index')->with('success', 'Visit request submitted successfully.');
     }
@@ -100,7 +104,13 @@ class VisitFacilityController extends Controller
         $visitRequest->status = VisitRequestStatus::DENIED;
         $visitRequest->save();
 
-        Log::info('Visit request for user '.$visitRequest->user_id.' denied. Reason: '.$validated['reason'].' Admin Notes: '.($validated['adminNotes'] ?? 'N/A').' by '.Auth::user()->id);
+        PrivilegedAction::record(PrivilegedAction::VISITOR_REQUEST_DENIED, $visitRequest, [
+            'visit_request_id' => $visitRequest->id,
+            'cid' => $visitRequest->user_id,
+            'reason' => $validated['reason'],
+            'admin_notes' => $validated['adminNotes'] ?? null,
+        ]);
+
         Mail::to($visitRequest->user->email)->bcc(['atm@zjxartcc.org', 'datm@zjxartcc.org'])->queue(new VisitorRequestRejected($visitRequest));
 
         return redirect()->back()->with('success', 'Visit request denied.');
@@ -135,7 +145,13 @@ class VisitFacilityController extends Controller
 
         Mail::to($visitRequest->user->email)->bcc(['atm@zjxartcc.org', 'datm@zjxartcc.org'])->queue(new VisitorRequestAccepted($visitRequest));
         AddUserToVisitingRoster::dispatch($visitRequest->user->id);
-        Log::info('Visit request for user '.$visitRequest->user_id.' approved. Operating Initials: '.$validated['operatingInitials'].' Admin Notes: '.($validated['adminNotes'] ?? 'N/A').' by '.Auth::user()->id);
+
+        PrivilegedAction::record(PrivilegedAction::VISITOR_REQUEST_APPROVED, $visitRequest, [
+            'visit_request_id' => $visitRequest->id,
+            'cid' => $visitRequest->user_id,
+            'operating_initials' => strtoupper($validated['operatingInitials']),
+            'admin_notes' => $validated['adminNotes'] ?? null,
+        ]);
 
         return redirect()->back()->with('success', 'Visit request approved.');
     }

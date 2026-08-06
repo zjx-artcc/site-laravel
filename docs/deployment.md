@@ -219,7 +219,20 @@ files (`config/app.php`, `config/logging.php`, `config/mail.php`) but are not pr
 ### Logging
 
 - `LOG_CHANNEL`, `LOG_STACK`, `LOG_DEPRECATIONS_CHANNEL`, `LOG_LEVEL` — log routing and
-  verbosity.
+  verbosity. Run production at `LOG_LEVEL=info`; scheduled jobs emit their run
+  summaries at that level.
+- `LOG_DAILY_DAYS` — retention for the `daily` channel (default 14).
+- `LOG_DEBUG_DAYS` — retention for the `debug` channel (default 3).
+
+To troubleshoot a sync in production, add the dedicated debug channel rather
+than turning the main log down:
+
+```dotenv
+LOG_STACK=daily,discord,debug
+```
+
+That captures debug output in `storage/logs/debug.log` on a short rotation while
+the main log stays at `info`. See [logging](systems/logging.md#debug-logging).
 
 ### Database
 

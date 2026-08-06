@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Jobs\Concerns\LogsJobRun;
 use App\Models\ControllerMonthlyStat;
 use App\Models\ControllerSession;
 use App\Models\StatisticsPrefixes;
@@ -10,12 +11,11 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class SyncStatsimSessions implements ShouldQueue
 {
-    use Queueable;
+    use LogsJobRun, Queueable;
 
     public int $timeout = 300;
 
@@ -26,6 +26,12 @@ class SyncStatsimSessions implements ShouldQueue
         $from = Carbon::create($this->year, $this->month, 1)->startOfMonth();
         $to = $from->copy()->endOfMonth();
 
+        $this->startRun([
+            'year' => $this->year,
+            'month' => $this->month,
+            'range' => $from->toDateString().' to '.$to->toDateString(),
+        ]);
+
         $response = Http::timeout(60)
             ->withHeaders(['X-Api-Key' => config('app.statsim_api_key') ?? ''])
             ->get('https://api.statsim.net/api/atcsessions/dates', [
@@ -34,7 +40,7 @@ class SyncStatsimSessions implements ShouldQueue
             ]);
 
         if (! $response->successful()) {
-            Log::error('Statsim sync failed', [
+            $this->abortRun('Statsim API request failed', [
                 'status' => $response->status(),
                 'body' => Str::limit($response->body(), 500),
                 'year' => $this->year,
@@ -46,7 +52,10 @@ class SyncStatsimSessions implements ShouldQueue
 
         $sessions = $response->json() ?? [];
         if (! is_array($sessions)) {
-            Log::error('Statsim sync returned non-array payload', ['year' => $this->year, 'month' => $this->month]);
+            $this->abortRun('Statsim returned a non-array payload', [
+                'year' => $this->year,
+                'month' => $this->month,
+            ]);
 
             return;
         }
@@ -54,6 +63,12 @@ class SyncStatsimSessions implements ShouldQueue
         $prefixes = StatisticsPrefixes::pluck('name')->toArray();
         $rosteredCids = User::where('rostered', true)->pluck('id')->flip();
         $touchedUserIds = [];
+
+        $this->setMetric('sessions_received', count($sessions));
+        $this->runDebug('fetched sessions', [
+            'prefixes' => $prefixes,
+            'rostered_controllers' => $rosteredCids->count(),
+        ]);
 
         foreach ($sessions as $session) {
             $callsign = $session['callsign'] ?? null;
@@ -63,20 +78,28 @@ class SyncStatsimSessions implements ShouldQueue
             $loggedOff = $session['loggedOff'] ?? null;
 
             if (! $callsign || ! $vatsimId || ! $sessionId || ! $loggedOn || ! $loggedOff) {
+                $this->countMetric('skipped_incomplete');
+
                 continue;
             }
 
             if (! Str::startsWith($callsign, $prefixes)) {
+                $this->countMetric('skipped_foreign_prefix');
+
                 continue;
             }
 
             $userId = (int) $vatsimId;
             if (! $rosteredCids->has($userId)) {
+                $this->countMetric('skipped_unrostered');
+
                 continue;
             }
 
             $facilityLevel = $this->facilityLevel(Str::upper(Str::substr($callsign, -3)));
             if ($facilityLevel < 2) {
+                $this->countMetric('skipped_unrated_position');
+
                 continue;
             }
 
@@ -91,12 +114,16 @@ class SyncStatsimSessions implements ShouldQueue
                 ]
             );
 
+            $this->countMetric('sessions_stored');
             $touchedUserIds[$userId] = true;
         }
 
         foreach (array_keys($touchedUserIds) as $userId) {
             $this->recomputeMonthlyStats($userId, $this->year, $this->month);
+            $this->countMetric('controllers_recomputed');
         }
+
+        $this->finishRun(['year' => $this->year, 'month' => $this->month]);
     }
 
     private function facilityLevel(string $suffix): int

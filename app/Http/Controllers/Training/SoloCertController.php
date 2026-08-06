@@ -11,9 +11,9 @@ use App\Mail\SoloCertRevoked;
 use App\Models\SoloCert;
 use App\Models\TrainingAssignment;
 use App\Models\User;
+use App\Support\PrivilegedAction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class SoloCertController extends Controller
@@ -74,11 +74,12 @@ class SoloCertController extends Controller
         CreateVatusaSoloCert::dispatch($soloCert);
         Mail::to($soloCert->user)->bcc([$soloCert->issuedBy, config('app.vatusa_facility').'-ta@vatusa.net'])->queue(new SoloCertIssued($soloCert));
 
-        Log::info('Solo cert issued', [
+        PrivilegedAction::record(PrivilegedAction::SOLO_CERT_ISSUED, $soloCert, [
             'solo_cert_id' => $soloCert->id,
-            'issued_by' => Auth::user()->id,
-            'user_id' => $validated['userId'],
+            'cid' => $validated['userId'],
             'position' => $validated['position'],
+            'expires' => $soloCert->expires?->toDateString(),
+            'assignments_moved_to_solo' => $relaventAssignments->count(),
         ]);
 
         return redirect(route('solo-certs.index'))->with('success', 'Solo certification created successfully.');
@@ -108,6 +109,14 @@ class SoloCertController extends Controller
         $soloCert->save();
 
         Mail::to($soloCert->user)->bcc([$soloCert->issuedBy, config('app.vatusa_facility').'-ta@vatusa.net'])->queue(new SoloCertRevoked($soloCert));
+
+        PrivilegedAction::record(PrivilegedAction::SOLO_CERT_REVOKED, $soloCert, [
+            'solo_cert_id' => $soloCert->id,
+            'cid' => $soloCert->user_id,
+            'position' => $soloCert->position,
+            'originally_issued_by' => $soloCert->issued_by_id,
+            'assignments_returned_to_active' => $relaventAssignments->count(),
+        ]);
 
         return redirect(route('solo-certs.index'))->with('success', 'Solo certification revoked successfully.');
     }

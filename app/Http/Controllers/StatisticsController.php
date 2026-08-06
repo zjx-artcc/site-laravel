@@ -6,6 +6,7 @@ use App\Jobs\SyncStatsimSessions;
 use App\Models\ControllerMonthlyStat;
 use App\Models\ControllerSession;
 use App\Models\User;
+use App\Support\PrivilegedAction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
@@ -34,6 +35,14 @@ class StatisticsController extends Controller
             $cursor->addMonthNoOverflow();
             $count++;
         }
+
+        // A manual backfill rewrites published controller hours, so record who
+        // asked for it and over what range.
+        PrivilegedAction::record(PrivilegedAction::STATISTICS_SYNC_QUEUED, null, [
+            'from' => $from->format('Y-m'),
+            'to' => $to->format('Y-m'),
+            'months_queued' => $count,
+        ]);
 
         return back()->with('success', "Queued sync for {$count} month(s): {$from->format('M Y')} – {$to->format('M Y')}.");
     }

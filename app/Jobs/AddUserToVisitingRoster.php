@@ -32,9 +32,16 @@ class AddUserToVisitingRoster implements ShouldQueue
         ]);
 
         if ($request->failed()) {
-            Log::error('Failed to add user '.$this->userId.' to visiting roster. Response: '.$request->body());
+            Log::error('Failed to add user to the VATUSA visiting roster', [
+                'user_id' => $this->userId,
+                'status' => $request->status(),
+                'body' => $request->body(),
+                'endpoint' => $URL,
+            ]);
         } else {
-            Log::info('Successfully added user '.$this->userId.' to visiting roster.');
+            Log::info('Added user to the VATUSA visiting roster', [
+                'user_id' => $this->userId,
+            ]);
         }
     }
 }

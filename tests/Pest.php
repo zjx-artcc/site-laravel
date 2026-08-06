@@ -1,6 +1,10 @@
 <?php
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
+use Monolog\Handler\TestHandler;
+use Monolog\Level;
+use Monolog\Logger;
 use Tests\TestCase;
 
 /*
@@ -61,4 +65,44 @@ expect()->extend('toRunInLessThan', function (int $milliseconds) {
 function something()
 {
     // ..
+}
+
+/**
+ * Swap the logger for one that records everything in memory, so tests can
+ * assert on what was actually logged — level, message and context.
+ *
+ * A Monolog TestHandler is used rather than a facade spy because the code under
+ * test reaches the logger by several routes (Log::info, Log::log($level, ...)),
+ * and what matters is the record that comes out the far end, not which method
+ * was called to get there.
+ */
+function captureLogs(): TestHandler
+{
+    $handler = new TestHandler(Level::Debug);
+
+    Log::swap(
+        new Illuminate\Log\Logger(new Logger('testing', [$handler]))
+    );
+
+    return $handler;
+}
+
+/**
+ * Find the first captured record whose message contains $needle.
+ *
+ * @return array<string, mixed>|null
+ */
+function findLog(TestHandler $handler, string $needle): ?array
+{
+    foreach ($handler->getRecords() as $record) {
+        if (str_contains($record['message'], $needle)) {
+            return [
+                'level' => $record['level_name'],
+                'message' => $record['message'],
+                'context' => $record['context'],
+            ];
+        }
+    }
+
+    return null;
 }

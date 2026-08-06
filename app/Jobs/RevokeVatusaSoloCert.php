@@ -37,9 +37,19 @@ class RevokeVatusaSoloCert implements ShouldQueue
         ]);
 
         if ($request->failed()) {
-            Log::error('Failed to revoke solo cert from VATUSA for user '.$this->soloCert->user_id, ['response' => $request->body()]);
+            Log::error('Failed to revoke solo cert from VATUSA', [
+                'solo_cert_id' => $this->soloCert->id,
+                'user_id' => $this->soloCert->user_id,
+                'position' => $this->soloCert->position,
+                'status' => $request->status(),
+                'body' => $request->body(),
+            ]);
         } else {
-            Log::info('Successfully revoked solo cert from VATUSA for user '.$this->soloCert->user_id);
+            Log::info('Revoked solo cert from VATUSA', [
+                'solo_cert_id' => $this->soloCert->id,
+                'user_id' => $this->soloCert->user_id,
+                'position' => $this->soloCert->position,
+            ]);
         }
     }
 }

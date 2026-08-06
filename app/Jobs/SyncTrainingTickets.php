@@ -2,17 +2,17 @@
 
 namespace App\Jobs;
 
+use App\Jobs\Concerns\LogsJobRun;
 use App\Models\TrainingTicket;
 use DateTime;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 class SyncTrainingTickets implements ShouldQueue
 {
-    use Queueable;
+    use LogsJobRun, Queueable;
 
     /**
      * Create a new job instance.
@@ -28,11 +28,17 @@ class SyncTrainingTickets implements ShouldQueue
     public function handle(): void
     {
         // https://api.vatusa.net/v2/training/record/{recordID}
-        $unsyncedTickets = TrainingTicket::where(['vatusa_synced' => false]);
+        $this->startRun();
 
-        foreach ($unsyncedTickets->get() as $ticket) {
+        $unsyncedTickets = TrainingTicket::where(['vatusa_synced' => false])->get();
+
+        $this->setMetric('tickets_pending', $unsyncedTickets->count());
+
+        foreach ($unsyncedTickets as $ticket) {
             $this->createVatusaTrainingTicket($ticket);
         }
+
+        $this->finishRun();
     }
 
     private function createVatusaTrainingTicket(mixed $ticket)
@@ -52,16 +58,19 @@ class SyncTrainingTickets implements ShouldQueue
                 'location' => $ticket->location,
             ]);
         } catch (Exception $e) {
-            Log::error($e->getMessage());
+            $this->countMetric('tickets_errored');
+            $this->failRun($e, ['ticket_id' => $ticket->id, 'user_id' => $ticket->user_id]);
 
             return;
         }
 
         if (! isset($request) || ! $request->successful()) {
-            Log::warning('Vatusa training record create failed', [
+            $this->countMetric('tickets_rejected');
+            $this->runWarning('VATUSA rejected a training record', [
                 'status' => isset($request) ? $request->status() : null,
                 'body' => isset($request) ? $request->body() : null,
                 'ticket_id' => $ticket->id,
+                'user_id' => $ticket->user_id,
             ]);
 
             return;
@@ -87,5 +96,19 @@ class SyncTrainingTickets implements ShouldQueue
         $ticket->vatusa_synced = true;
         $ticket->vatusa_id = $vatusaId ? (string) $vatusaId : substr(preg_replace('/[^a-z0-9]/i', '', sha1($request->body() ?? (string) microtime(true))), 0, 12);
         $ticket->save();
+
+        if (! $vatusaId) {
+            $this->countMetric('tickets_synced_without_vatusa_id');
+            $this->runWarning('VATUSA accepted a training record but returned no record ID', [
+                'ticket_id' => $ticket->id,
+                'fallback_vatusa_id' => $ticket->vatusa_id,
+            ]);
+        }
+
+        $this->countMetric('tickets_synced');
+        $this->runDebug('training record synced', [
+            'ticket_id' => $ticket->id,
+            'vatusa_id' => $ticket->vatusa_id,
+        ]);
     }
 }
