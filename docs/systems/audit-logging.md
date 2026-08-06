@@ -30,9 +30,23 @@ need to add auditing to a model or work on the audit-log viewer.
 | `TrainingAssignment` | `app/Models/TrainingAssignment.php` | `user_id`, `instructor_id`, `status` |
 | `TrainingTicket` | `app/Models/TrainingTicket.php` | `user_id`, `instructor_id`, `session_date`, `duration`, `movements`, `score`, `notes`, `location`, `ots_status` |
 | `StatisticsPrefixes` | `app/Models/StatisticsPrefixes.php` | `name` |
+| `Publication` | `app/Models/Publication.php` | `name`, `description`, `version`, `publication_category_id`, `original_filename` |
+| `PublicationCategory` | `app/Models/PublicationCategory.php` | `title`, `description`, `display_order`, `show_in_nav` |
+| `VisitorRequest` | `app/Models/VisitorRequest.php` | `user_id`, `status`, `reason`, `admin_notes` |
+| `SoloCert` | `app/Models/SoloCert.php` | `user_id`, `issued_by_id`, `position`, `revoked` |
+| `ManualContributor` | `app/Models/ManualContributor.php` | `github_username`, `display_name`, `section`, `note` |
 
-All four use `LogOptions::defaults()`, so only the listed attributes are logged
-and (by Spatie's defaults) empty diffs are not recorded.
+All use `LogOptions::defaults()`, so only the listed attributes are logged.
+`Publication` and `PublicationCategory` additionally call `logOnlyDirty()`.
+
+Note that `LogOptions::defaults()` leaves `logOnlyDirty` **false** and
+`submitEmptyLogs` **true**, so a model without `logOnlyDirty()` records an entry
+on every save, even when none of the logged attributes changed.
+
+Changes made through the query builder rather than Eloquent — `upsert()`,
+`Model::where(...)->update(...)` — do **not** fire model events and are therefore
+never recorded. This is why roster membership changes do not appear here:
+`SyncRoster` uses `User::upsert()` and a mass `update()`.
 
 ### The `activity_log` table
 
@@ -127,9 +141,16 @@ So a viewer must have both `view dashboard` and `view audit logs`.
 ## Gotchas
 
 - **Only the `logOnly()` attributes are recorded.** Changing an attribute that
-  is not in a model's `getActivitylogOptions()` list produces no log entry, and
-  for updates Spatie's defaults skip entries with an empty diff. If you add a
-  column that should be audited, add it to the model's `logOnly()` list.
+  is not in a model's `getActivitylogOptions()` list produces no log entry. If
+  you add a column that should be audited, add it to the model's `logOnly()`
+  list. Note that entries are *not* skipped on an empty diff unless the model
+  opts in with `logOnlyDirty()`.
+- **Query-builder writes are invisible.** `upsert()` and
+  `Model::where(...)->update(...)` bypass Eloquent events, so nothing is logged.
+  Use model saves for anything that needs auditing.
+- **Deletions store the row under `old`, not `attributes`.** The viewer and
+  export merge both keys, so they render correctly, but code reading
+  `properties['attributes']` directly will find nothing for a `deleted` event.
 - **Stored subject/causer types can outlive their classes.** The viewer avoids
   eager-loading subjects, and both the viewer and export tolerate model classes
   that no longer exist (`rescue()` around `$log->subject`). Do not add code that
