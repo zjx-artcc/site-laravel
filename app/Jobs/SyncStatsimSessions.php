@@ -54,6 +54,14 @@ class SyncStatsimSessions implements ShouldQueue
         $prefixes = StatisticsPrefixes::pluck('name')->toArray();
         $rosteredCids = User::where('rostered', true)->pluck('id')->flip();
         $touchedUserIds = [];
+        $stored = 0;
+        $skipped = 0;
+
+        Log::debug('Statsim sync fetched sessions', [
+            'count' => count($sessions),
+            'prefixes' => $prefixes,
+            'rostered_controllers' => $rosteredCids->count(),
+        ]);
 
         foreach ($sessions as $session) {
             $callsign = $session['callsign'] ?? null;
@@ -63,20 +71,28 @@ class SyncStatsimSessions implements ShouldQueue
             $loggedOff = $session['loggedOff'] ?? null;
 
             if (! $callsign || ! $vatsimId || ! $sessionId || ! $loggedOn || ! $loggedOff) {
+                $skipped++;
+
                 continue;
             }
 
             if (! Str::startsWith($callsign, $prefixes)) {
+                $skipped++;
+
                 continue;
             }
 
             $userId = (int) $vatsimId;
             if (! $rosteredCids->has($userId)) {
+                $skipped++;
+
                 continue;
             }
 
             $facilityLevel = $this->facilityLevel(Str::upper(Str::substr($callsign, -3)));
             if ($facilityLevel < 2) {
+                $skipped++;
+
                 continue;
             }
 
@@ -91,12 +107,22 @@ class SyncStatsimSessions implements ShouldQueue
                 ]
             );
 
+            $stored++;
             $touchedUserIds[$userId] = true;
         }
 
         foreach (array_keys($touchedUserIds) as $userId) {
             $this->recomputeMonthlyStats($userId, $this->year, $this->month);
         }
+
+        Log::info('Statsim sync complete', [
+            'year' => $this->year,
+            'month' => $this->month,
+            'sessions_received' => count($sessions),
+            'sessions_stored' => $stored,
+            'sessions_skipped' => $skipped,
+            'controllers_updated' => count($touchedUserIds),
+        ]);
     }
 
     private function facilityLevel(string $suffix): int

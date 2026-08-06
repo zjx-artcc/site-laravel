@@ -219,7 +219,11 @@ files (`config/app.php`, `config/logging.php`, `config/mail.php`) but are not pr
 ### Logging
 
 - `LOG_CHANNEL`, `LOG_STACK`, `LOG_DEPRECATIONS_CHANNEL`, `LOG_LEVEL` — log routing and
-  verbosity.
+  verbosity. Run production at `LOG_LEVEL=info`; sync jobs emit their completion
+  summaries at that level. Drop to `debug` temporarily to investigate a sync — see
+  [logging](architecture.md#logging).
+- Note `LOG_STACK` is comma-separated and defaults to `single`. The `discord` channel
+  only receives anything if it is listed there (e.g. `LOG_STACK=daily,discord`).
 
 ### Database
 

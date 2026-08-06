@@ -109,6 +109,13 @@ class SoloCertController extends Controller
 
         Mail::to($soloCert->user)->bcc([$soloCert->issuedBy, config('app.vatusa_facility').'-ta@vatusa.net'])->queue(new SoloCertRevoked($soloCert));
 
+        Log::info('Solo cert revoked', [
+            'solo_cert_id' => $soloCert->id,
+            'user_id' => $soloCert->user_id,
+            'position' => $soloCert->position,
+            'revoked_by' => Auth::user()->id,
+        ]);
+
         return redirect(route('solo-certs.index'))->with('success', 'Solo certification revoked successfully.');
     }
 }

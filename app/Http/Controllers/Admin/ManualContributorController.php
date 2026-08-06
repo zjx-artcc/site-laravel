@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ManualContributor;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class ManualContributorController extends Controller
 {
@@ -25,8 +27,16 @@ class ManualContributorController extends Controller
             'note' => 'nullable|string|max:100',
         ]);
 
-        ManualContributor::create($validated);
+        $contributor = ManualContributor::create($validated);
         Cache::forget('github_contributors');
+
+        Log::info('Contributor added', [
+            'contributor_id' => $contributor->id,
+            'github_username' => $validated['github_username'] ?? null,
+            'display_name' => $validated['display_name'] ?? null,
+            'section' => $validated['section'],
+            'added_by' => Auth::user()->id,
+        ]);
 
         $label = $validated['github_username'] ? "@{$validated['github_username']}" : ($validated['display_name'] ?? 'Contributor');
 
@@ -35,6 +45,14 @@ class ManualContributorController extends Controller
 
     public function destroy(ManualContributor $contributor)
     {
+        Log::info('Contributor removed', [
+            'contributor_id' => $contributor->id,
+            'github_username' => $contributor->github_username,
+            'display_name' => $contributor->display_name,
+            'section' => $contributor->section,
+            'removed_by' => Auth::user()->id,
+        ]);
+
         $contributor->delete();
         Cache::forget('github_contributors');
 

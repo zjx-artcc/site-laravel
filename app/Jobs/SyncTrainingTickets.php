@@ -14,6 +14,8 @@ class SyncTrainingTickets implements ShouldQueue
 {
     use Queueable;
 
+    private int $synced = 0;
+
     /**
      * Create a new job instance.
      */
@@ -28,11 +30,17 @@ class SyncTrainingTickets implements ShouldQueue
     public function handle(): void
     {
         // https://api.vatusa.net/v2/training/record/{recordID}
-        $unsyncedTickets = TrainingTicket::where(['vatusa_synced' => false]);
+        $unsyncedTickets = TrainingTicket::where(['vatusa_synced' => false])->get();
 
-        foreach ($unsyncedTickets->get() as $ticket) {
+        foreach ($unsyncedTickets as $ticket) {
             $this->createVatusaTrainingTicket($ticket);
         }
+
+        Log::info('Training ticket sync complete', [
+            'tickets_pending' => $unsyncedTickets->count(),
+            'tickets_synced' => $this->synced,
+            'tickets_failed' => $unsyncedTickets->count() - $this->synced,
+        ]);
     }
 
     private function createVatusaTrainingTicket(mixed $ticket)
@@ -87,5 +95,13 @@ class SyncTrainingTickets implements ShouldQueue
         $ticket->vatusa_synced = true;
         $ticket->vatusa_id = $vatusaId ? (string) $vatusaId : substr(preg_replace('/[^a-z0-9]/i', '', sha1($request->body() ?? (string) microtime(true))), 0, 12);
         $ticket->save();
+
+        $this->synced++;
+
+        Log::debug('Training ticket synced to VATUSA', [
+            'ticket_id' => $ticket->id,
+            'user_id' => $ticket->user_id,
+            'vatusa_id' => $ticket->vatusa_id,
+        ]);
     }
 }

@@ -148,6 +148,12 @@ class TrainingAssignmentController extends Controller
 
         Mail::to($assignment->student->email)->bcc($assignment->instructor ?? null)->queue(new TrainingAssignmentUpdated($assignment));
 
+        Log::info('Training assignment claimed', [
+            'assignment_id' => $assignment->id,
+            'student_id' => $assignment->user_id,
+            'claimed_by' => Auth::user()->id,
+        ]);
+
         return redirect()->back()->with('success', 'Training assignment claimed successfully');
     }
 
@@ -164,13 +170,27 @@ class TrainingAssignmentController extends Controller
             return redirect()->back()->with('error', 'Cannot update inactive training assignment.');
         }
 
+        $previousInstructorId = $assignment->instructor_id;
+        $dropped = false;
+
         if ($assignment->instructor_id == $user->id || $user->hasPermissionTo('manage students')) {
             $assignment->update([
                 'instructor_id' => null,
             ]);
+            $dropped = true;
         }
 
         Mail::to($assignment->student->email)->queue(new TrainingAssignmentUpdated($assignment));
+
+        Log::info('Training assignment dropped', [
+            'assignment_id' => $assignment->id,
+            'student_id' => $assignment->user_id,
+            'previous_instructor_id' => $previousInstructorId,
+            // The route reports success either way, so record whether the
+            // instructor was actually cleared.
+            'instructor_cleared' => $dropped,
+            'dropped_by' => $user->id,
+        ]);
 
         return redirect()->back()->with('success', 'Training assignment dropped successfully');
     }
@@ -192,6 +212,13 @@ class TrainingAssignmentController extends Controller
             $assignment->active = false;
             $assignment->status = TrainingStatus::FORFEIT;
             $assignment->save();
+
+            Log::info('Training assignment forfeited', [
+                'assignment_id' => $assignment->id,
+                'student_id' => $assignment->user_id,
+                'instructor_id' => $assignment->instructor_id,
+                'forfeited_by' => $user->id,
+            ]);
 
             return redirect()->back()->with('success', 'Training assignment deactivated successfully');
         } else {

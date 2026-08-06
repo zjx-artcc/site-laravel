@@ -130,15 +130,75 @@ The scheduler is defined in `routes/console.php` (the console entry registered b
 | --- | --- | --- |
 | `Schedule::job(new SyncRoster())` | `app/Jobs/SyncRoster.php` | Every two hours |
 | `Schedule::job(new UpdateOnlineControllers())` | `app/Jobs/UpdateOnlineControllers.php` | Every minute |
+| `Schedule::call(...)` | `app/Jobs/SyncStatsimSessions.php` | Daily at 04:00, for the current and previous month |
 
 `SyncRoster` pulls the controller roster from VATUSA; `UpdateOnlineControllers` refreshes
-who is currently online. Both are covered in [VATSIM integration](vatsim-integration.md)
+who is currently online; `SyncStatsimSessions` backfills controller session statistics
+(the previous month is re-synced because Statsim can backfill after the month rolls over).
+The first two are covered in [VATSIM integration](vatsim-integration.md)
 and [roster and membership](systems/roster-and-membership.md). In local/development you can
 trigger these manually via the dev-only `/sync` route.
 
 Because scheduled work is dispatched as queued jobs, a queue worker and the scheduler both
 need to run. `composer run dev` starts `php artisan serve`, `php artisan queue:listen`,
 `php artisan pail`, and `npm run dev` together for local development.
+
+## Logging
+
+Standard Laravel logging (`Illuminate\Support\Facades\Log`) throughout — channels are
+configured in `config/logging.php` and selected with `LOG_STACK`. Levels follow their
+usual RFC 5424 meanings.
+
+Pass context as an array rather than interpolating into the message, so lines stay
+greppable and structured:
+
+```php
+Log::info('Visit request approved', [
+    'user_id' => $visitRequest->user_id,
+    'approved_by' => Auth::user()->id,
+]);
+```
+
+### What gets logged
+
+**Sync jobs log on success, not just on failure** — otherwise a job that has silently
+stopped running looks identical to one that ran and found nothing to do. Each emits a
+completion line with counts:
+
+| Job | Line | Level |
+| --- | --- | --- |
+| `SyncRoster` | `Roster sync complete` | `info` |
+| `SyncStatsimSessions` | `Statsim sync complete` | `info` |
+| `SyncTrainingTickets` | `Training ticket sync complete` | `info` |
+| `UpdateOnlineControllers` | `Online controller sync complete` | `debug` |
+
+`UpdateOnlineControllers` reports at `debug` because it runs every minute; at `info` it
+would add roughly 1,400 lines a day. Its failures are still logged at `error`.
+
+**Privileged actions are logged at `info`** with the acting user's CID — visit request
+submitted/approved/denied, solo cert issued/revoked, training assignment
+updated/claimed/dropped/forfeited, training ticket created, statistics prefix
+added/deleted, contributor added/removed, and controllers joining or leaving the roster.
+
+This is separate from the database audit trail, which records model lifecycles and is
+viewable in the admin area — see [audit logging](systems/audit-logging.md).
+
+### Debug mode
+
+Debug output is off by default. To investigate a sync, set:
+
+```dotenv
+LOG_LEVEL=debug
+```
+
+`SyncRoster` is the most heavily instrumented, since it is the sync most likely to need
+investigating: the endpoints being called, the full membership diff (`joined_cids` /
+`departed_cids`), and per-position staff role assignment. `SyncStatsimSessions` logs the
+prefixes and rostered-controller count it filters against; `UpdateOnlineControllers` logs
+each facility controller found online; `SyncTrainingTickets` logs each ticket synced.
+
+Set `LOG_LEVEL` back to `info` afterwards — debug output is high volume and, if the
+Discord channel is in `LOG_STACK`, it ships there too.
 
 ## Infrastructure drivers
 

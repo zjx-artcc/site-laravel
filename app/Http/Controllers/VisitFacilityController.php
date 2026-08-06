@@ -77,7 +77,10 @@ class VisitFacilityController extends Controller
         ]);
 
         Mail::to($visitRequest->user->email)->bcc(['atm@zjxartcc.org', 'datm@zjxartcc.org'])->queue(new VisitorRequestReceived($visitRequest));
-        Log::info('New visit request submitted for user '.$visitRequest->user_id.' by '.Auth::user()->id);
+        Log::info('Visit request submitted', [
+            'visit_request_id' => $visitRequest->id,
+            'user_id' => $visitRequest->user_id,
+        ]);
 
         return redirect()->route('visit.index')->with('success', 'Visit request submitted successfully.');
     }
@@ -100,7 +103,13 @@ class VisitFacilityController extends Controller
         $visitRequest->status = VisitRequestStatus::DENIED;
         $visitRequest->save();
 
-        Log::info('Visit request for user '.$visitRequest->user_id.' denied. Reason: '.$validated['reason'].' Admin Notes: '.($validated['adminNotes'] ?? 'N/A').' by '.Auth::user()->id);
+        Log::info('Visit request denied', [
+            'visit_request_id' => $visitRequest->id,
+            'user_id' => $visitRequest->user_id,
+            'reason' => $validated['reason'],
+            'admin_notes' => $validated['adminNotes'] ?? null,
+            'denied_by' => Auth::user()->id,
+        ]);
         Mail::to($visitRequest->user->email)->bcc(['atm@zjxartcc.org', 'datm@zjxartcc.org'])->queue(new VisitorRequestRejected($visitRequest));
 
         return redirect()->back()->with('success', 'Visit request denied.');
@@ -135,7 +144,13 @@ class VisitFacilityController extends Controller
 
         Mail::to($visitRequest->user->email)->bcc(['atm@zjxartcc.org', 'datm@zjxartcc.org'])->queue(new VisitorRequestAccepted($visitRequest));
         AddUserToVisitingRoster::dispatch($visitRequest->user->id);
-        Log::info('Visit request for user '.$visitRequest->user_id.' approved. Operating Initials: '.$validated['operatingInitials'].' Admin Notes: '.($validated['adminNotes'] ?? 'N/A').' by '.Auth::user()->id);
+        Log::info('Visit request approved', [
+            'visit_request_id' => $visitRequest->id,
+            'user_id' => $visitRequest->user_id,
+            'operating_initials' => strtoupper($validated['operatingInitials']),
+            'admin_notes' => $validated['adminNotes'] ?? null,
+            'approved_by' => Auth::user()->id,
+        ]);
 
         return redirect()->back()->with('success', 'Visit request approved.');
     }
