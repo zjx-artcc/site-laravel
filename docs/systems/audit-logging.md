@@ -17,6 +17,9 @@ need to add auditing to a model or work on the audit-log viewer.
   `Spatie\Activitylog\Traits\LogsActivity` trait and defining
   `getActivitylogOptions()`, which declares exactly which attributes to log via
   `LogOptions::defaults()->logOnly([...])`.
+- **Scheduled jobs write entries directly** with Spatie's `activity()` helper
+  rather than a model trait, so a sync that ran successfully is visible in the
+  viewer and not only in the log file. See [Job entries](#job-entries).
 - **The viewer is admin-only** and lets staff filter by controller (CID) and by
   record type, then either browse the paginated log or stream a CSV export.
 
@@ -30,9 +33,51 @@ need to add auditing to a model or work on the audit-log viewer.
 | `TrainingAssignment` | `app/Models/TrainingAssignment.php` | `user_id`, `instructor_id`, `status` |
 | `TrainingTicket` | `app/Models/TrainingTicket.php` | `user_id`, `instructor_id`, `session_date`, `duration`, `movements`, `score`, `notes`, `location`, `ots_status` |
 | `StatisticsPrefixes` | `app/Models/StatisticsPrefixes.php` | `name` |
+| `Publication` | `app/Models/Publication.php` | `name`, `description`, `version`, `publication_category_id`, `original_filename` |
+| `PublicationCategory` | `app/Models/PublicationCategory.php` | `title`, `description`, `display_order`, `show_in_nav` |
+| `VisitorRequest` | `app/Models/VisitorRequest.php` | `user_id`, `status`, `reason`, `admin_notes` |
+| `SoloCert` | `app/Models/SoloCert.php` | `user_id`, `issued_by_id`, `position`, `revoked` |
+| `ManualContributor` | `app/Models/ManualContributor.php` | `github_username`, `display_name`, `section`, `note` |
 
-All four use `LogOptions::defaults()`, so only the listed attributes are logged
-and (by Spatie's defaults) empty diffs are not recorded.
+All use `LogOptions::defaults()`, so only the listed attributes are logged.
+`Publication` and `PublicationCategory` additionally call `logOnlyDirty()`.
+
+Note that `LogOptions::defaults()` leaves `logOnlyDirty` **false** and
+`submitEmptyLogs` **true**, so a model without `logOnlyDirty()` records an entry
+on every save, even when none of the logged attributes changed.
+
+Changes made through the query builder rather than Eloquent — `upsert()`,
+`Model::where(...)->update(...)` — do **not** fire model events and are therefore
+never recorded. This is why roster membership changes do not appear here:
+`SyncRoster` uses `User::upsert()` and a mass `update()`.
+
+### Job entries
+
+Sync jobs previously logged only on failure, so a job that had silently stopped
+running looked the same as one that ran and found nothing to do. Each now writes
+a completion entry with Spatie's `activity()` helper:
+
+```php
+activity()->withProperties(['attributes' => [
+    'sessions_received' => count($sessions),
+    'sessions_stored' => $stored,
+]])->log('Statsim sync complete');
+```
+
+| Job | Entry | Notes |
+| --- | --- | --- |
+| `SyncRoster` | `Roster sync complete` | Plus one `Removed from roster` entry per departing controller, with that user as the subject |
+| `SyncStatsimSessions` | `Statsim sync complete` | Month, sessions received/stored, controllers updated |
+| `SyncTrainingTickets` | `Training ticket sync complete` | Tickets pending/synced/failed |
+
+These entries have **no `event`** (the viewer falls back to `description` for
+the action badge), **no causer** (they run unattended, so the Who column shows
+"System"), and — except for roster removals — **no subject**, so the Record
+column is empty and they are not reachable via the record-type filter.
+
+`UpdateOnlineControllers` deliberately writes **no** audit entry: it runs every
+minute and would add ~1,400 rows a day. Its failures go to the application log
+at `error` level.
 
 ### The `activity_log` table
 
@@ -94,6 +139,21 @@ which flattens the `properties` diff into `Field: from -> to` (for updates) or
 using Laravel's `rescue()` so a missing/renamed subject class does not break the
 export; causers with no record are shown as `System`.
 
+## Debug logging
+
+The audit log records *what* happened. To see *why* a sync behaved as it did,
+turn on debug output in the application log:
+
+```dotenv
+LOG_LEVEL=debug
+```
+
+`SyncRoster` logs the endpoint it is calling and the membership diff
+(`roster_size`, `departed_cids`); `SyncStatsimSessions` logs the prefixes and
+rostered-controller count it filters against. This goes to whatever `LOG_STACK`
+is shipping to, not to the audit log. Set it back to `info` afterwards — if the
+`discord` channel is in `LOG_STACK`, debug output ships there too.
+
 ## Permissions / middleware
 
 Both audit-log routes live in the `admin` route group (guarded by
@@ -127,9 +187,16 @@ So a viewer must have both `view dashboard` and `view audit logs`.
 ## Gotchas
 
 - **Only the `logOnly()` attributes are recorded.** Changing an attribute that
-  is not in a model's `getActivitylogOptions()` list produces no log entry, and
-  for updates Spatie's defaults skip entries with an empty diff. If you add a
-  column that should be audited, add it to the model's `logOnly()` list.
+  is not in a model's `getActivitylogOptions()` list produces no log entry. If
+  you add a column that should be audited, add it to the model's `logOnly()`
+  list. Note that entries are *not* skipped on an empty diff unless the model
+  opts in with `logOnlyDirty()`.
+- **Query-builder writes are invisible.** `upsert()` and
+  `Model::where(...)->update(...)` bypass Eloquent events, so nothing is logged.
+  Use model saves for anything that needs auditing.
+- **Deletions store the row under `old`, not `attributes`.** The viewer and
+  export merge both keys, so they render correctly, but code reading
+  `properties['attributes']` directly will find nothing for a `deleted` event.
 - **Stored subject/causer types can outlive their classes.** The viewer avoids
   eager-loading subjects, and both the viewer and export tolerate model classes
   that no longer exist (`rescue()` around `$log->subject`). Do not add code that

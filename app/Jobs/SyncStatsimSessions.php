@@ -54,6 +54,13 @@ class SyncStatsimSessions implements ShouldQueue
         $prefixes = StatisticsPrefixes::pluck('name')->toArray();
         $rosteredCids = User::where('rostered', true)->pluck('id')->flip();
         $touchedUserIds = [];
+        $stored = 0;
+
+        Log::debug('Statsim sync fetched sessions', [
+            'count' => count($sessions),
+            'prefixes' => $prefixes,
+            'rostered_controllers' => $rosteredCids->count(),
+        ]);
 
         foreach ($sessions as $session) {
             $callsign = $session['callsign'] ?? null;
@@ -91,12 +98,20 @@ class SyncStatsimSessions implements ShouldQueue
                 ]
             );
 
+            $stored++;
             $touchedUserIds[$userId] = true;
         }
 
         foreach (array_keys($touchedUserIds) as $userId) {
             $this->recomputeMonthlyStats($userId, $this->year, $this->month);
         }
+
+        activity()->withProperties(['attributes' => [
+            'month' => sprintf('%04d-%02d', $this->year, $this->month),
+            'sessions_received' => count($sessions),
+            'sessions_stored' => $stored,
+            'controllers_updated' => count($touchedUserIds),
+        ]])->log('Statsim sync complete');
     }
 
     private function facilityLevel(string $suffix): int

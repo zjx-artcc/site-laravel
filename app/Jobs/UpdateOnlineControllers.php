@@ -8,6 +8,7 @@ use App\Models\StatisticsPrefixes;
 use Http;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Log;
 use Str;
 
 class UpdateOnlineControllers implements ShouldQueue
@@ -28,7 +29,20 @@ class UpdateOnlineControllers implements ShouldQueue
 
         $onlineData = Http::get($API_ENDPOINT);
 
-        $controllers = json_decode($onlineData, true);
+        $controllers = $onlineData->json();
+
+        // Checked before truncating: a failed request used to empty the table
+        // anyway, showing the facility as fully offline on any VATSIM blip.
+        // Not written to the audit log — this runs every minute.
+        if ($onlineData->failed() || ! is_array($controllers)) {
+            Log::error('Online controller sync failed', [
+                'status' => $onlineData->status(),
+                'endpoint' => $API_ENDPOINT,
+            ]);
+
+            return;
+        }
+
         $prefixes = StatisticsPrefixes::pluck('name')->toArray();
         OnlineController::truncate();
 
