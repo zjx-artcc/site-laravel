@@ -2,15 +2,15 @@
 
 namespace App\Console\Commands;
 
-use App\Jobs\SyncStatsimSessions;
+use App\Jobs\SyncVatsimSessions;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 
-class SyncStatsim extends Command
+class SyncVatsimStatistics extends Command
 {
-    protected $signature = 'statsim:sync {year : Year to start from} {month : Month to start from (1-12)} {end_month? : Optional end month to sync a range (1-12)}';
+    protected $signature = 'statistics:sync {year : Year to start from} {month : Month to start from (1-12)} {end_month? : Optional end month to sync a range (1-12)}';
 
-    protected $description = 'Sync controller statistics from Statsim for a specific month or range of months';
+    protected $description = 'Queue controller-statistics syncs from VATSIM for a specific month or range of months';
 
     public function handle(): void
     {
@@ -34,18 +34,18 @@ class SyncStatsim extends Command
         $end = Carbon::createFromDate($year, $endMonth, 1);
         $total = $endMonth - $startMonth + 1;
 
-        $this->info("Syncing {$total} month(s) from {$cursor->format('M Y')} to {$end->format('M Y')}...");
+        $this->info("Queueing {$total} month(s) from {$cursor->format('M Y')} to {$end->format('M Y')}...");
         $bar = $this->output->createProgressBar($total);
         $bar->start();
 
         while ($cursor->lessThanOrEqualTo($end)) {
-            (new SyncStatsimSessions($cursor->year, $cursor->month))->handle();
+            SyncVatsimSessions::dispatch($cursor->year, $cursor->month);
             $bar->advance();
             $cursor->addMonthNoOverflow();
         }
 
         $bar->finish();
         $this->newLine();
-        $this->info('Sync complete.');
+        $this->info('Sync jobs queued.');
     }
 }

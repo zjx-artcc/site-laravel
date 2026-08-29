@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Jobs\SyncStatsimSessions;
+use App\Jobs\SyncVatsimSessions;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 
@@ -16,7 +16,7 @@ class StatsSyncSeeder extends Seeder
         $end = Carbon::now()->startOfMonth();
 
         while ($cursor->lessThanOrEqualTo($end)) {
-            SyncStatsimSessions::dispatch($cursor->year, $cursor->month);
+            SyncVatsimSessions::dispatch($cursor->year, $cursor->month);
             $cursor->addMonthNoOverflow();
         }
     }

@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\SyncStatsimSessions;
+use App\Jobs\SyncVatsimSessions;
 use App\Models\ControllerMonthlyStat;
 use App\Models\ControllerSession;
 use App\Models\User;
@@ -30,7 +30,7 @@ class StatisticsController extends Controller
         $count = 0;
         $cursor = $from->copy();
         while ($cursor->lessThanOrEqualTo($to)) {
-            SyncStatsimSessions::dispatch($cursor->year, $cursor->month);
+            SyncVatsimSessions::dispatch($cursor->year, $cursor->month);
             $cursor->addMonthNoOverflow();
             $count++;
         }

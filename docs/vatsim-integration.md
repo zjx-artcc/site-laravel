@@ -38,6 +38,8 @@ in their sections below.
 
 - `SyncRoster` — every two hours.
 - `UpdateOnlineControllers` — every minute.
+- `SyncVatsimSessions` — daily at 04:00 for the current and prior month. It
+  dispatches one `SyncVatsimMemberSessions` job per rostered controller.
 
 `SyncTrainingTickets` is **not** scheduled. It only runs when dispatched
 manually through the dev-only `/sync-training` route (see
@@ -168,6 +170,29 @@ Runs every minute. Refreshes the list of ZJX controllers currently online.
 
 Because the table is truncated and rebuilt each minute, `online_controllers`
 always reflects the last successful poll.
+
+### Controller statistics — `SyncVatsimSessions` / `SyncVatsimMemberSessions`
+
+Controller-hours syncs use VATSIM's public member-session endpoint:
+`GET {vatsim_api_url}/v2/members/{cid}/atc`. The monthly dispatcher queues an
+independent job for every rostered controller, preventing a single controller's
+long history from delaying the rest of the facility.
+
+Each member job requests pages of 100 sessions, filters the returned sessions by
+the configured `statistics_prefixes`, and writes every qualifying ATC session to
+`controller_sessions`. It recalculates the requested month's hours by facility
+level after its final page. One queued job processes one API
+page. Staging and production share VATSIM's per-IP limit, so each environment
+defaults to three page jobs per minute (`VATSIM_STATS_SYNC_RATE_LIMIT`), leaving
+headroom for both environments' online-controller polls and other calls. Initial
+member jobs and continuation pages are delayed evenly across that per-minute
+budget, avoiding a burst of immediately released queue jobs. The endpoint
+returns a total `count`; before the final request, the job reduces `limit` to
+the remaining records, so it never sends an out-of-range `offset + limit`
+combination. Because member-history pages are newest first, pagination stops as
+soon as a page reaches before the requested month. Debug logs record each
+dispatcher and page boundary, qualifying-session counts, and the recalculated
+monthly hour totals.
 
 ## Data transfer objects — `app/DTOs/`
 

@@ -4,7 +4,9 @@ namespace App\Providers;
 
 use App\Services\Socialite\VatsimProvider;
 use GuzzleHttp\Client;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
@@ -33,6 +35,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Staging and production share one IP, and VATSIM allows 10 API
+        // requests per minute per IP. The default leaves room for both
+        // environments' online-controller polls and other VATSIM API calls.
+        RateLimiter::for('vatsim-atc-sessions', fn () => Limit::perMinute(config('app.vatsim_stats_sync_rate_limit'))->by('vatsim-atc-sessions'));
+
         /*Socialite::extend('vatsim', function($app) {
             $config = $app['config']['services.vatsim'];
             return Socialite::buildProvider(VatsimProvider::class, $config);
@@ -50,7 +57,7 @@ class AppServiceProvider extends ServiceProvider
             return $socialite->buildProvider(VatsimProvider::class, $config);
         });
 
-        // Force IPv4 for every outbound Http:: facade call (VATUSA/VATSIM/STATSIM/GitHub) —
+        // Force IPv4 for every outbound Http:: facade call (VATUSA/VATSIM/GitHub) —
         // rules out flaky/blackholed IPv6 routing as a source of intermittent connect timeouts.
         Http::globalOptions([
             'curl' => [

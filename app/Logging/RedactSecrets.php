@@ -20,7 +20,6 @@ class RedactSecrets
             $secrets = array_values(array_filter([
                 config('app.vatusa_api_key'),
                 config('app.vatsim_client_secret'),
-                config('app.statsim_api_key'),
             ], fn ($secret) => is_string($secret) && $secret !== ''));
 
             if ($secrets === []) {
