@@ -151,6 +151,7 @@ Route::prefix('events')->name('events.')->group(function () {
         ->name('index');
 
     Route::get('{event}', [EventController::class, 'show'])
+        ->whereNumber('event')
         ->name('show');
 });
 
