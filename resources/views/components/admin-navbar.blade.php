@@ -95,6 +95,7 @@
                             @endif
                         </a>
                     </li>
+                    <li><a href={{ route('statistics.quarterly') }}>Roster Purge Assistant</a></li>
                     <li>
                         <a href={{ route('loa.manage') }}>LOA Requests
                             @if(Loa::where('status', LoaStatus::PENDING)->count() > 0)
