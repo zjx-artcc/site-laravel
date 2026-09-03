@@ -282,17 +282,19 @@
                     </div>
                 </form>
 
-            @if($stats->isEmpty())
-                <p class="text-base">No controller activity recorded for this period.</p>
-            @else
-
-                {{-- All-Time Hours --}}
+            {{-- All-Time Hours (facility-wide, independent of the selected period) --}}
+            @if($allTimeHours > 0)
                 <x-card-component title="All-Time Hours">
                     <div class="mt-3">
                         <p class="text-xs text-base-content/60 mb-1">Total ARTCC Hours{{ $allTimeSince ? ' since ' . $allTimeSince : '' }}</p>
                         <p class="text-3xl font-bold">{{ number_format($allTimeHours, 1) }}h</p>
                     </div>
                 </x-card-component>
+            @endif
+
+            @if($stats->isEmpty())
+                <p class="text-base">No controller activity recorded for this period.</p>
+            @else
 
                 {{-- Facility Totals --}}
                 <x-card-component title="Facility Totals - {{ $year === 0 ? ($month === 0 ? 'All Time' : \Illuminate\Support\Carbon::create(null, $month)->format('F') . ' (All Years)') : ($month === 0 ? $year : \Illuminate\Support\Carbon::create($year, $month, 1)->format('F Y')) }}">

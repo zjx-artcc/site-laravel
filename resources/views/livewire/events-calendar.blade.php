@@ -44,7 +44,7 @@
                                 {{ $inMonth ? 'bg-base-100' : 'bg-base-200/40' }}
                                 {{ $isToday ? 'ring-2 ring-primary/40 ring-inset' : '' }}">
                         {{-- Day number --}}
-                        <div class="text-xs font-medium {{ $inMonth ? 'text-base-content' : 'text-base-content/30' }} {{ $isToday ? 'text-primary font-bold' : '' }}">
+                        <div class="text-xs font-medium {{ $inMonth ? 'text-base-content' : 'text-base-content/30' }} {{ $isToday ? 'text-base-content font-bold' : '' }}">
                             {{ $day->format('j') }}
                         </div>
 
@@ -52,7 +52,7 @@
                         <div class="mt-0.5 space-y-0.5 overflow-y-auto max-h-[4rem] lg:max-h-[5rem]">
                             @foreach($dayEvents as $event)
                                 <a href="{{ route('events.show', $event->id) }}"
-                                   class="block text-xs leading-tight px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition truncate">
+                                   class="block text-xs leading-tight px-1.5 py-0.5 rounded bg-primary/10 text-base-content hover:bg-primary/20 transition truncate">
                                     {{ $event->title }}
                                 </a>
                             @endforeach
@@ -82,7 +82,7 @@
         @forelse($daysWithEvents as $item)
             <div class="card card-compact bg-base-100 border border-base-200">
                 <div class="card-body p-3">
-                    <h3 class="text-sm font-semibold {{ $item['day']->isToday() ? 'text-primary' : 'text-base-content' }}">
+                    <h3 class="text-sm font-semibold {{ $item['day']->isToday() ? 'text-base-content' : 'text-base-content' }}">
                         {{ $item['day']->format('l, M j') }}
                         @if($item['day']->isToday())
                             <span class="badge badge-primary badge-xs ml-1">Today</span>

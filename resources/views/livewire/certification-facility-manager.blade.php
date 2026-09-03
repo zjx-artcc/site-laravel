@@ -1,4 +1,5 @@
 <div>
+    <div class="overflow-x-auto">
     <table class="table table-zebra">
         <thead>
             <tr>
@@ -51,6 +52,7 @@
             @endforelse
         </tbody>
     </table>
+    </div>
 
     <form wire:submit="createFacility" class="mt-10 border-t-1 border-base-300 pt-5 flex flex-col gap-2 w-max">
         <h2 class="text-xl">Add Facility</h2>

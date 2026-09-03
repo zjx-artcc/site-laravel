@@ -32,7 +32,7 @@
                     </div>
                 @endif
 
-                <form method='POST' action="{{ route('loa.update', $activeLoa) }}" class='flex flex-col w-max gap-5 mt-2'>
+                <form method='POST' action="{{ route('loa.update', $activeLoa) }}" class='flex flex-col w-full max-w-120 gap-5 mt-2'>
                     @csrf
                     @method('PUT')
 
@@ -51,7 +51,7 @@
                     <div>
                         <label for="reason">Reason for LOA</label>
                         <br>
-                        <textarea id="reason" name="reason" class="textarea textarea-bordered w-120" rows="4" maxlength='1000'>{{ old('reason', $activeLoa->reason) }}</textarea>
+                        <textarea id="reason" name="reason" class="textarea textarea-bordered w-full" rows="4" maxlength='1000'>{{ old('reason', $activeLoa->reason) }}</textarea>
                     </div>
 
                     <p class='text-sm text-warning'>Saving changes will reset this LOA to Pending for staff review.</p>
@@ -70,7 +70,7 @@
         @else
             <p class='mb-4'>Your LOA will be submitted to staff for approval.</p>
 
-            <form method='POST' action="{{ route('loa.store') }}" class='flex flex-col w-max gap-5'>
+            <form method='POST' action="{{ route('loa.store') }}" class='flex flex-col w-full max-w-120 gap-5'>
                 @csrf
 
                 <div>
@@ -88,7 +88,7 @@
                 <div>
                     <label for="reason">Reason for LOA</label>
                     <br>
-                    <textarea id="reason" name="reason" class="textarea textarea-bordered w-120" rows="4" maxlength='1000'>{{ old('reason') }}</textarea>
+                    <textarea id="reason" name="reason" class="textarea textarea-bordered w-full" rows="4" maxlength='1000'>{{ old('reason') }}</textarea>
                 </div>
 
                 <button type="submit" class="btn btn-primary">Submit LOA Request</button>
@@ -98,6 +98,7 @@
 
     @if ($loaHistory->count() > 0)
         <x-card-component title='LOA History'>
+            <div class='overflow-x-auto'>
             <table class='table table-zebra'>
                 <thead>
                     <tr>
@@ -120,6 +121,7 @@
                     @endforeach
                 </tbody>
             </table>
+            </div>
 
             {{ $loaHistory->links() }}
         </x-card-component>

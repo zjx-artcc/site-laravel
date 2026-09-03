@@ -2,6 +2,7 @@
     <x-search/>
 
     @unless(sizeof($users) == 0)
+        <div class='overflow-x-auto'>
         <table class='table table-zebra table-md w-max border-2 rounded-md border-base-300 mt-5'>
             <thead>
                 <tr class='text-xl font-bold'>
@@ -48,27 +49,41 @@
                             <td class='border-r-1 border-base-300'>{{ $user->joined_at?->format('Y-m-d') ?? '—' }}</td>
                             <td class='border-r-1 border-base-300'>{{ $user->updated_at?->format('Y-m-d') ?? '—' }}</td>
                             <td>
-                                <ul class='text-accent menu menu-horizontal h-10 items-center gap-x-5 justify-center'>
-                                    <li>
-                                        <details>
-                                            <summary>Actions</summary>
-                                            <ul class="bg-base-100 text-base-content rounded-t-none p-2 z-10">
-                                                <li><a href={{ route('users.edit', ['user' => $user->id]) }}>Edit</a></li>
-                                            </ul>
-                                        </details>
-                                    </li>
-                                </ul>
+                                <div x-data="{
+                                        open: false,
+                                        top: 0,
+                                        left: 0,
+                                        openMenu() {
+                                            const rect = $refs.trigger.getBoundingClientRect();
+                                            this.top = rect.bottom + window.scrollY;
+                                            this.left = rect.right + window.scrollX - 160;
+                                            this.open = true;
+                                        },
+                                    }">
+                                    <div x-ref="trigger" tabindex="0" role="button" class="btn btn-sm" @click="open ? (open = false) : openMenu()">Actions</div>
+
+                                    <template x-teleport="body">
+                                        <ul x-show="open" x-cloak
+                                            @click.outside="open = false"
+                                            @click="open = false"
+                                            :style="`top: ${top}px; left: ${left}px;`"
+                                            class="fixed text-base-content menu bg-base-100 rounded-box z-50 w-40 p-2 shadow-sm border border-base-300">
+                                            <li><a href={{ route('users.edit', ['user' => $user->id]) }}>Edit</a></li>
+                                        </ul>
+                                    </template>
+                                </div>
                             </td>
                         @endhaspermission
                     </tr>
                 @endforeach
             </tbody>
         </table>
+        </div>
     @else
         <h1>There are no rostered users.</h1>
     @endunless
 
-    <div class="w-150 mt-5">
+    <div class="w-full max-w-150 mt-5">
         {{ $users->links() }}
     </div>
 </div>

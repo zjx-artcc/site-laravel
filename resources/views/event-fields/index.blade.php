@@ -32,6 +32,7 @@
     @if ($featuredFields->isEmpty())
         <h1>There are no event fields yet.</h1>
     @else
+        <div class="overflow-x-auto">
         <table class="table table-zebra table-md w-max border-2 border-base-300">
             <thead>
                 <tr>
@@ -67,5 +68,6 @@
                 @endforeach
             </tbody>
         </table>
+        </div>
     @endif
 @endsection

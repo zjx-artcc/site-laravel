@@ -1,5 +1,6 @@
 <div>
     @unless (sizeof($positions) == 0)
+        <div class='overflow-x-auto'>
         <table x-data='$positions' class='table table-zebra table-md w-max border-2 border-base-300'>
             <thead>
                 <tr class='text-xl font-bold'>
@@ -38,6 +39,7 @@
                 @endforeach
             </tbody>
         </table>
+        </div>
     @else
         <h1>There are no existing presets.</h1>
     @endunless

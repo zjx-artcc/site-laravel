@@ -9,7 +9,7 @@
 @endphp
 
 @section('body')
-    <div class='flex flex-wrap gap-10'>
+    <div class='flex flex-col gap-5 sm:flex-row sm:flex-wrap sm:gap-10'>
         <x-card-component title="ARTCC Membership Overview">
             <div class="mt-5">
                 <h2 class='text-2xl'><strong>Home:</strong> {{ $homeControllers }}</h2>

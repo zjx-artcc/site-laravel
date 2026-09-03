@@ -1,4 +1,5 @@
 <div>
+    <div class='overflow-x-auto'>
     <table class='table table-compact w-full mt-5'>
         <thead>
             <tr>
@@ -18,6 +19,7 @@
             @endforelse
         </tbody>
     </table>
+    </div>
 
     <form wire:submit="createLevel" class='flex flex-col gap-2 w-max mt-4'>
         <h2 class='text-xl'>Add Certification Level</h2>

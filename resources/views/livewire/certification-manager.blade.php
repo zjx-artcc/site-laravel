@@ -10,6 +10,7 @@
     </div>
 
     @unless(sizeof($users) == 0)
+        <div class="overflow-x-auto">
         <table class='table table-zebra table-md w-max border-2 rounded-md border-base-300 mt-5'>
             <thead>
                 <tr class='text-xl font-bold'>
@@ -37,7 +38,7 @@
                         @foreach($facilities as $facility)
                             @php $level = $user->highestCertificationLevelFor($facility->id); @endphp
                             <td
-                                class='text-center cursor-pointer hover:bg-base-300 @if($level) bg-success text-success-content font-semibold @else text-gray-400 @endif'
+                                class='text-center cursor-pointer hover:bg-base-300 @if($level) bg-success text-success-content font-semibold @else text-base-content/60 @endif'
                                 wire:click="openEditor({{ $user->id }}, {{ $facility->id }})">
                                 {{ $level?->abbreviation ?? 'Uncertified' }}
                             </td>
@@ -46,11 +47,12 @@
                 @endforeach
             </tbody>
         </table>
+        </div>
     @else
         <h1>There are no rostered users.</h1>
     @endunless
 
-    <div class="w-150 mt-5">
+    <div class="w-full max-w-150 mt-5">
         {{ $users->links() }}
     </div>
 
@@ -60,7 +62,7 @@
                 <h3 class="text-lg font-bold">
                     {{ $editingUser->nameReversed }} &mdash; {{ $editingFacility->identifier }} certifications
                 </h3>
-                <p class="text-sm text-gray-400 mb-3">Check every level this controller holds. The roster shows the highest.</p>
+                <p class="text-sm text-base-content/60 mb-3">Check every level this controller holds. The roster shows the highest.</p>
 
                 <div class="flex flex-col gap-2">
                     @forelse($editingFacility->certificationLevels as $level)
@@ -73,7 +75,7 @@
                             <span>{{ $level->name }} <span class="badge badge-sm">{{ $level->abbreviation }}</span> (level {{ $level->level }})</span>
                         </label>
                     @empty
-                        <p class="text-gray-400">This facility has no certification levels defined.</p>
+                        <p class="text-base-content/60">This facility has no certification levels defined.</p>
                     @endforelse
                 </div>
 

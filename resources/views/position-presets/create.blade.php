@@ -4,7 +4,7 @@
 
 @section('body')
     <x-card-component>
-        <form method="POST" action="{{ route('admin.events.position-presets.store') }}" class="flex flex-col gap-2 w-max">
+        <form method="POST" action="{{ route('admin.events.position-presets.store') }}" class="flex flex-col gap-2 w-max max-w-full">
             @csrf
             <label for="positions" class="label">Preset Name</label>
             <input name="name" type="text" required placeholder="Eg. Generic Positions by Rating" class="input" />

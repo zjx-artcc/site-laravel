@@ -59,7 +59,7 @@
 
                 <div class="divide-y divide-base-300">
                     <div class="py-3">
-                        <h3 class="font-bold text-primary">
+                        <h3 class="font-bold text-primary dark:text-base-content">
                             <a href="https://discord.gg/bHDwSQn9fh">
                                 <i class="fa-brands fa-discord"></i> Join Our Discord
                             </a>
@@ -67,7 +67,7 @@
                     </div>
 
                     <div class="py-3">
-                        <h3 class="font-bold text-primary">
+                        <h3 class="font-bold text-primary dark:text-base-content">
                             <a href="{{ route('events.index') }}">
                                 <i class="fa-regular fa-calendar"></i> View Events
                             </a>
@@ -75,7 +75,7 @@
                     </div>
 
                     <div class="py-3">
-                        <h3 class="font-bold text-primary">
+                        <h3 class="font-bold text-primary dark:text-base-content">
                             <a href="{{ route('roster.index') }}">
                                 <i class="fa-solid fa-users"></i> Controller Roster
                             </a>
@@ -83,9 +83,17 @@
                     </div>
 
                     <div class="py-3">
-                        <h3 class="font-bold text-primary">
+                        <h3 class="font-bold text-primary dark:text-base-content">
                             <a href="{{ route('publications.index') }}">
                                 <i class="fa-regular fa-file-lines"></i> Publications &amp; Downloads
+                            </a>
+                        </h3>
+                    </div>
+
+                    <div class="py-3">
+                        <h3 class="font-bold text-primary dark:text-base-content">
+                            <a href="{{ route('faq.index') }}">
+                                <i class="fa-regular fa-circle-question"></i> FAQ &amp; Useful Controller Information
                             </a>
                         </h3>
                     </div>
@@ -95,7 +103,7 @@
             <x-card-component-2 title="Upcoming Events">
                 <div class="flex justify-between">
                     @if(!$events->isEmpty())
-                        <h1 class="font-bold text-primary">
+                        <h1 class="font-bold text-base-content">
                             <a href="{{ route('events.index') }}">View All Events</a>
                         </h1>
                     @endif
@@ -151,7 +159,7 @@
                                 class="bg-base-300 rounded-md overflow-hidden cursor-pointer hover:shadow-lg transition w-full"
                                 onclick="news_modal_{{ $n->id }}.showModal()"
                             >
-                                <h3 class="font-medium text-base sm:text-lg text-black px-3 py-2">
+                                <h3 class="font-medium text-base sm:text-lg text-base-content px-3 py-2">
                                     {{ $n->title }}
                                 </h3>
                             </div>

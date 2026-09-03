@@ -3,6 +3,17 @@
 
 [x-cloak] { display: none !important; }
 
+/* Point Tailwind's dark: variant at the theme actually in use. data-theme is only
+   present once someone picks a theme, so the media query covers the untouched
+   default the way daisyUI's own prefersdark does. */
+@custom-variant dark {
+    &:where([data-theme="dark"], [data-theme="dark"] *) { @slot; }
+
+    @media (prefers-color-scheme: dark) {
+        :where(html:not([data-theme="light"])) & { @slot; }
+    }
+}
+
 @source '../views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 
@@ -11,7 +22,7 @@
 }
 
 @plugin "daisyui" {
-    themes: light --default;
+    themes: light --default, dark --prefersdark;
 }
 
 
@@ -87,6 +98,87 @@
     --font: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
 }
 
+@plugin "daisyui/theme" {
+    name: "dark";
+    default: false;
+    prefersdark: true;
+    color-scheme: "dark";
+
+    /* Base colors: same neutral hue as the light theme, inverted for a dark background */
+    --color-base-100: oklch(22% 0.010 264.531);
+    --color-base-200: oklch(26% 0.012 264.531);
+    --color-base-300: oklch(31% 0.014 264.531);
+    --color-base-content: oklch(97% 0.002 264.531);
+
+    /* Primary, secondary, accent, and semantic colors match the light theme exactly
+       (only the base/neutral surface colors differ between themes) */
+    --color-primary: oklch(0.426 0.139 255);
+    --color-primary-content: #ffffff;
+
+    /* Secondary */
+    --color-secondary: oklch(75% 0.15 80);
+    --color-secondary-content: oklch(25% 0.05 80);
+
+    /* Accent */
+    --color-accent: oklch(65% 0.12 190);
+    --color-accent-content: oklch(20% 0.04 190);
+
+    /* Neutral */
+    --color-neutral: oklch(28% 0.014 255.508);
+    --color-neutral-content: oklch(88% 0.013 255.508);
+
+    /* --- Semantic Colors --- */
+
+    --color-info: oklch(70% 0.1 220);
+    --color-info-content: oklch(20% 0.05 220);
+
+    --color-success: oklch(70% 0.16 150);
+    --color-success-content: #ffffff;
+
+    --color-warning: oklch(82% 0.189 84.429);
+    --color-warning-content: oklch(27% 0.077 45.635);
+
+    --color-error: oklch(60% 0.2 30);
+    --color-error-content: #ffffff;
+
+    /* --- UI Variables --- */
+
+    --radius-selector: 0.25rem;
+    --radius-field: 0.25rem;
+    --radius-box: 0.25rem;
+
+    --size-selector: 0.25rem;
+    --size-field: 0.25rem;
+    --border: 1px;
+    --font: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+}
+
 :root {
     background-color: var(--color-base-100);
+}
+
+/* Quill's snow theme hardcodes dark ink for its toolbar icons (#444), borders, and
+   placeholder text, so the B/I/U/strike controls vanish against the dark theme's
+   surfaces. Recolor them to follow base-content. Hover/active keep Quill's own blue
+   so the toggled state stays distinguishable from the default. */
+[data-theme="dark"] .ql-snow .ql-stroke {
+    stroke: var(--color-base-content);
+}
+
+[data-theme="dark"] .ql-snow .ql-fill,
+[data-theme="dark"] .ql-snow .ql-stroke.ql-fill {
+    fill: var(--color-base-content);
+}
+
+[data-theme="dark"] .ql-snow .ql-picker {
+    color: var(--color-base-content);
+}
+
+[data-theme="dark"] .ql-toolbar.ql-snow,
+[data-theme="dark"] .ql-container.ql-snow {
+    border-color: var(--color-base-300);
+}
+
+[data-theme="dark"] .ql-editor.ql-blank::before {
+    color: color-mix(in oklch, var(--color-base-content) 60%, transparent);
 }

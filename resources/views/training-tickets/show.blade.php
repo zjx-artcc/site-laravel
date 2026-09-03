@@ -26,7 +26,7 @@
             @endif
         </div>
         <x-label-slot label="Session Notes">
-            <div id="notes" class='bg-white p-2 rounded-md min-h-50 w-full'>{!! \Stevebauman\Purify\Facades\Purify::clean($trainingTicket->notes) !!}</div>
+            <div id="notes" class='bg-base-100 text-base-content p-2 rounded-md min-h-50 w-full'>{!! \Stevebauman\Purify\Facades\Purify::clean($trainingTicket->notes) !!}</div>
         </x-label-slot>
     </div>
 

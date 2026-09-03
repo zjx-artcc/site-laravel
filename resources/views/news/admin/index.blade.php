@@ -8,6 +8,7 @@
     @if ($news->isEmpty())
         <h1>There are no announcements.</h1>
     @else
+        <div class="overflow-x-auto">
         <table class="table table-zebra table-md w-full border-2 border-base-300">
             <thead>
                 <tr>
@@ -32,6 +33,7 @@
                 @endforeach
             </tbody>
         </table>
+        </div>
 
         <div class="mt-5">
             {{ $news->links() }}

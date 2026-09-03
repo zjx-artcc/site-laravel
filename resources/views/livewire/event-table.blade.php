@@ -1,5 +1,6 @@
 <div>
     @unless (sizeof($events) == 0)
+        <div class='overflow-x-auto'>
         <table class='table table-zebra table-md w-max border-2 border-base-300'>
             <thead>
                 <tr class='text-xl font-bold'>
@@ -55,6 +56,7 @@
                 @endforeach
             </tbody>
         </table>
+        </div>
     @else
         <h1>There are no created events.</h1>
     @endunless

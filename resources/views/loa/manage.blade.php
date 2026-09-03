@@ -10,6 +10,7 @@
     @if($loas->isEmpty())
         <p class="mt-5">There are no LOA requests.</p>
     @else
+        <div class='overflow-x-auto'>
         <table class='table table-zebra mt-5'>
             <thead>
                 <tr>
@@ -56,6 +57,7 @@
                 @endforeach
             </tbody>
         </table>
+        </div>
 
         {{ $loas->links() }}
     @endif

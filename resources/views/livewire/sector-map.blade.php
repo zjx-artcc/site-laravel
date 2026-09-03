@@ -80,7 +80,7 @@
         </div>
 
         @error('sector')
-            <div role="alert" class="alert alert-error alert-sm w-max">
+            <div role="alert" class="alert alert-error alert-sm w-max max-w-full">
                 <span>{{ $message }}</span>
             </div>
         @enderror

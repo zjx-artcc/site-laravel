@@ -6,6 +6,7 @@
     @endif
 @endif
 
+<div class="overflow-x-auto">
 <table class='table table-zebra table-md w-max mt-5'>
     <thead>
     <tr>
@@ -45,3 +46,4 @@
     @endunless
     </tbody>
 </table>
+</div>

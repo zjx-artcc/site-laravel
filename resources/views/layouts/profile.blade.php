@@ -54,8 +54,12 @@
                 href='{{ route("users.show.registered-events", $user) }}'
                 @class(['tab whitespace-nowrap', 'tab-active' => request()->routeIs('users.show.registered-events')])
             >Event Signups</a>
-        </div>
-    </div>
+                </div>
+
+                @auth
+                    <p class="sm:hidden text-xs text-base-content/60 mt-1">Scroll to see more tabs &rarr;</p>
+                @endauth
+            </div>
 
     <div class='w-full max-w-4xl mx-auto bg-base-100 border-base-300 border p-3 sm:p-4'>
         @yield('profile-content')

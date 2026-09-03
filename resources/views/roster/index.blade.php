@@ -3,6 +3,7 @@
 @section('title', 'Roster')
 @section('body')
     @unless(sizeof($users) == 0)
+        <div class='overflow-x-auto overscroll-x-contain'>
         <table class='table table-zebra table-md w-max border-2 border-base-300'>
             <thead>
                 <tr class='text-xl font-bold'>
@@ -44,13 +45,14 @@
                                         {{ $level->abbreviation }}
                                     </td>
                                 @else
-                                    <td class='text-center text-gray-400'>Uncertified</td>
+                                    <td class='text-center text-base-content/60'>Uncertified</td>
                                 @endif
                             @endforeach
                         </tr>
                 @endforeach
             </tbody>
         </table>
+        </div>
     @else
         <h1>There are no rostered users.</h1>
     @endunless

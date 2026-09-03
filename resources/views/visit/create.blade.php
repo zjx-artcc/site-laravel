@@ -8,7 +8,8 @@
         @if ($checklist->error)
             <p class='text-lg'>It appears you are not a member of VATUSA. Please read <a class='link link-primary' href="https://www.vatusa.net/help/kb#q12">this FAQ</a> on how to join as an out-of-division controller.</p>
         @else
-            <table class='table w-max table-auto overflow-x-scroll'>
+            <div class='overflow-x-auto'>
+            <table class='table w-full table-auto'>
                 <tr>
                     <td>You are not a member of vZJX</td>
                     <td>
@@ -53,6 +54,7 @@
                 </tr>
     
             </table>
+            </div>
 
             <p>For more detailed information, please check your <a class='link link-primary' href="https://www.vatusa.net/my/profile">VATUSA profile.</a></p>
 
@@ -65,7 +67,7 @@
         @endif
         
         @if ($checklist->visitEligible && !auth()->user()->rostered && !$checklist->error)
-            <form class='flex flex-col w-max gap-5 mt-5' action="{{ route('visit.store') }}" method="post">
+            <form class='flex flex-col w-full max-w-120 gap-5 mt-5' action="{{ route('visit.store') }}" method="post">
                 @csrf
                 <div>
                     <label for="cid">VATSIM CID</label>
@@ -76,7 +78,7 @@
                 <div>
                     <label for="personalNote">Why do you want to visit vZJX?</label>
                     <br>
-                    <textarea id="personalNote" name="personalNote" class="textarea textarea-bordered w-120" rows="4" maxlength='1000'></textarea>
+                    <textarea id="personalNote" name="personalNote" class="textarea textarea-bordered w-full" rows="4" maxlength='1000'></textarea>
                 </div>
                 
                 <button type="submit" class="btn btn-primary">Submit Visiting Request</button>

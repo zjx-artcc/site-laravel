@@ -1,10 +1,21 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}"
+    x-data="{ theme: localStorage.getItem('theme') }"
+    x-init="$watch('theme', value => value ? localStorage.setItem('theme', value) : localStorage.removeItem('theme'))"
+    :data-theme="theme">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
         <title>@yield('title') - ZJX ARTCC</title>
+
+        {{-- Applied before first paint so a saved preference doesn't flash the system-default theme first --}}
+        <script>
+            (function () {
+                var theme = localStorage.getItem('theme');
+                if (theme) document.documentElement.setAttribute('data-theme', theme);
+            })();
+        </script>
 
         <link rel="icon" href="/favicon.ico" sizes="any">
         <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -23,7 +34,7 @@
             @vite(['resources/css/app.css', 'resources/js/app.js'])
         @endif
     </head>
-    <body class='flex flex-col min-h-screen w-full overflow-x-hidden font-sans' data-theme='light'>
+    <body class='flex flex-col min-h-screen w-full overflow-x-hidden font-sans'>
         <x-navbar/>
 
         @yield('secondary-navbar')
@@ -79,7 +90,7 @@
 
         <div class="footer gap-y-0 p-0">
             @env('development', 'staging')
-                <div class="footer-center w-full p-2 bg-warning">
+                <div class="footer-center w-full p-2 bg-warning text-warning-content">
                     <h1>DEVELOPMENT BUILD - THE FUNCTIONS OF THIS SITE ARE NOT INDICATIVE OF THE PRODUCTION WEBSITE AND MAY BE CHANGED AT ANY TIME. SENSITIVE DATA IS ENTERED AT YOUR OWN RISK.</h1>
                     @auth
                         <h1 class="mt-5">AUTHENTICATED USER: <strong>{{Auth::user()->id}} - {{Auth::user()->name}}</strong></h1>
@@ -103,7 +114,7 @@
             <footer class="w-full bg-primary text-primary-content p-2">
                 <h1 class="text-xl font-bold">Virtual Jacksonville ARTCC</h1>
 
-                <div class="flex gap-x-10">
+                <div class="flex flex-wrap gap-x-6 sm:gap-x-10 gap-y-1">
                     <a class="link text-lg" href="{{ route('faq.index') }}">FAQ &amp; Help</a>
                     <a class="link text-lg" href="https://github.com/zjx-artcc" target="_blank">GitHub</a>
                     <a class="link text-lg" href="https://vatusa.net" target="_blank">VATUSA</a>

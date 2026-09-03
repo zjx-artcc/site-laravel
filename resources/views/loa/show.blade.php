@@ -57,7 +57,7 @@
                     @method('PUT')
 
                     <label for="response" class='label'>Response to User (optional)</label>
-                    <textarea class='textarea textarea-bordered w-120' name="response" id="response" rows="3" maxlength='1000'>{{ old('response', $loa->response) }}</textarea>
+                    <textarea class='textarea textarea-bordered w-full max-w-120' name="response" id="response" rows="3" maxlength='1000'>{{ old('response', $loa->response) }}</textarea>
 
                     <div class='card-actions mt-2'>
                         <button type="submit" class='btn btn-success' formaction='{{ route('loa.approve', $loa->id) }}'>Approve Request</button>
@@ -72,7 +72,7 @@
                     @method('PUT')
 
                     <label for="response" class='label'>Response to User (optional)</label>
-                    <textarea class='textarea textarea-bordered w-120' name="response" id="response" rows="3" maxlength='1000'>{{ old('response', $loa->response) }}</textarea>
+                    <textarea class='textarea textarea-bordered w-full max-w-120' name="response" id="response" rows="3" maxlength='1000'>{{ old('response', $loa->response) }}</textarea>
 
                     <div class='card-actions mt-2'>
                         <button type="submit" class='btn btn-error' formaction='{{ route('loa.revoke', $loa->id) }}'>Revoke LOA</button>

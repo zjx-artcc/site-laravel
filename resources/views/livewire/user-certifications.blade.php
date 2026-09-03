@@ -3,7 +3,7 @@
         <div>
             <h3 class="font-semibold">{{ $facility->identifier }} &mdash; {{ $facility->name }}</h3>
             @if($facility->certificationLevels->isEmpty())
-                <p class="text-gray-400 text-sm">No levels defined.</p>
+                <p class="text-base-content/60 text-sm">No levels defined.</p>
             @else
                 <div class="flex flex-row flex-wrap gap-4 mt-1">
                     @foreach($facility->certificationLevels as $level)
@@ -20,6 +20,6 @@
             @endif
         </div>
     @empty
-        <p class="text-gray-400">No certification facilities defined.</p>
+        <p class="text-base-content/60">No certification facilities defined.</p>
     @endforelse
 </div>

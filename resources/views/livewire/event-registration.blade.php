@@ -48,7 +48,7 @@
                     @enderror
                 </label>
 
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <label for="start" class="flex flex-col gap-1">
                         <span class="label-text font-semibold">Start (Z)</span>
                         @if (!$submitted)

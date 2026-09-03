@@ -13,7 +13,7 @@
                 @csrf
 
                 <div>
-                    <label for="title" class="label font-bold text-black">Title</label>
+                    <label for="title" class="label font-bold text-base-content">Title</label>
                     <input
                         type="text"
                         name="title"
@@ -24,7 +24,7 @@
                 </div>
 
                 <div>
-                    <label for="content" class="label font-bold text-black">Content</label>
+                    <label for="content" class="label font-bold text-base-content">Content</label>
                     <x-markdown-editor name="content" :content="old('content')" />
                 </div>
 

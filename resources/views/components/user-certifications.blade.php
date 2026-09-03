@@ -10,7 +10,7 @@
 @endphp
 
 @if($byFacility->isEmpty())
-    <p class='text-gray-400'>This controller holds no certifications.</p>
+    <p class='text-base-content/60'>This controller holds no certifications.</p>
 @else
     <div class='flex flex-col gap-3'>
         @foreach($byFacility as $certs)
