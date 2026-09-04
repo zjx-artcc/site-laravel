@@ -1,4 +1,4 @@
-@extends('layouts.admin-2')
+@extends('layouts.admin')
 
 @php
     use \App\Models\VisitorRequest;
@@ -11,8 +11,8 @@
 @section('content')
     <section class="grid grid-cols-5 gap-3">
         <div class="col-span-full">
-            <h1 class="col-span-full">Welcome back, User!</h1>
-            <p>Here's what's going on in vZJX today.</p>
+            <h1 class="col-span-full text-2xl text-primary font-bold">Welcome back, {{ auth()->user()->first_name }}!</h1>
+            <p class="">Here's what's going on in vZJX today.</p>
         </div>
 
         <x-card-component title="Total Rostered Users">
@@ -35,13 +35,16 @@
             <p>Hello World</p>
         </x-card-component>
 
-        <x-card-component class="col-span-3" title="Active Center Split">
-            <div class="w-full min-w-0 overflow-x-auto">
-                <livewire:sector-map/>
-            </div>
-        </x-card-component>
+        <div class="col-span-2">
+            <x-card-component class="" title="Active Center Split">
+                <div class="w-full min-w-0 overflow-x-auto">
+                    <livewire:sector-map/>
+                </div>
+            </x-card-component>
+        </div>
 
-        <x-card-component class="col-span-1" title="Upcoming Events">
+
+        <x-card-component class="col-span-2" title="Upcoming Events">
             <p>Hello World</p>
         </x-card-component>
 
