@@ -35,30 +35,49 @@
     @endif
 </head>
 
-<body class="flex min-h-screen w-full overflow-x-hidden font-sans">
+<body class="flex flex-col min-h-screen w-full overflow-x-hidden font-sans">
 
-<aside class="w-64 shrink-0 min-h-screen">
-    <ul class="menu bg-base-200 min-h-full w-full p-4">
-        <li>
-            <a href="{{ route('admin.index') }}"
-               class="{{ request()->routeIs('admin.index')
-        ? 'bg-primary text-primary-content'
-        : 'hover:bg-base-300' }}">
-                Dashboard
-            </a>
-        </li>
+<x-navbar />
 
-        <li><a>Events</a></li>
-        <li><a>Training</a></li>
-        <li><a>Facilities</a></li>
-        <li><a>System Settings</a></li>
-    </ul>
-</aside>
+<div class="flex flex-1 min-h-0">
 
-<main class="min-w-0 flex-1 p-6">
-    @yield('content')
-</main>
+    <aside class="w-64 shrink-0">
+        <ul class="menu bg-base-200 min-h-full w-full p-4">
+            <li>
+                <a
+                    href="{{ route('admin.index') }}"
+                    class="{{ request()->routeIs('admin.index')
+                            ? 'bg-primary text-primary-content'
+                            : 'hover:bg-base-300' }}"
+                >
+                    Dashboard
+                </a>
+            </li>
+
+            <li>
+                <a href="#">Events</a>
+            </li>
+
+            <li>
+                <a href="#">Training</a>
+            </li>
+
+            <li>
+                <a href="#">Facilities</a>
+            </li>
+
+            <li>
+                <a href="#">System Settings</a>
+            </li>
+        </ul>
+    </aside>
+
+    <main class="min-w-0 flex-1 p-6">
+        @yield('content')
+    </main>
+
+</div>
 
 @livewireScripts
 </body>
-</html>
+<html>
