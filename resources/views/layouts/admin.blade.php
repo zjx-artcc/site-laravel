@@ -39,7 +39,15 @@
 
 <aside class="w-64 shrink-0 min-h-screen">
     <ul class="menu bg-base-200 min-h-full w-full p-4">
-        <li><a>Dashboard</a></li>
+        <li>
+            <a href="{{ route('admin.index') }}"
+               class="{{ request()->routeIs('admin.index')
+        ? 'bg-primary text-primary-content'
+        : 'hover:bg-base-300' }}">
+                Dashboard
+            </a>
+        </li>
+
         <li><a>Events</a></li>
         <li><a>Training</a></li>
         <li><a>Facilities</a></li>
