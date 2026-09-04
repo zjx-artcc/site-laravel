@@ -55,19 +55,54 @@
             </li>
 
             <li>
-                <a href="#">Events</a>
+                <details>
+                    <summary class="font-normal hover:bg-base-300">
+                        Events
+                    </summary>
+
+                    <ul>
+                        <li><a href="{{ route('admin.events.index') }}">Manage Events</a></li>
+                        <li><a href="{{ route('admin.events.position-presets.index') }}">Position Presets</a></li>
+                        <li><a href="{{ route('admin.events.event-fields.index') }}">Event Field Presets</a></li>
+                        <li><a href="{{ route('admin.staffing-requests.index') }}">Staffing Requests</a></li>
+                    </ul>
+                </details>
             </li>
 
             <li>
-                <a href="#">Training</a>
+                <details>
+                    <summary class="font-normal hover:bg-base-300">
+                        Training
+                    </summary>
+
+                    <ul>
+                        <li><a href="{{ route('admin.training.index') }}">Training Dashboard</a></li>
+                        <li><a href="{{ route('training-assignments.index') }}">My Students (TODO)</a></li>
+                        <li><a href="{{ route('training-assignments.index') }}">Training Assignments</a></li>
+                        <li><a href="{{ route('training-tickets.index') }}">Training Tickets</a></li>
+                        <li><a href="{{ route('training-tickets.create') }}">Create Training Ticket</a></li>
+                        <li><a href="{{ route('solo-certs.index') }}">Solo Certs</a></li>
+                        <li><a href="{{ route('solo-certs.create') }}">Issue Solo Cert</a></li>
+                    </ul>
+                </details>
             </li>
 
             <li>
-                <a href="#">Facilities</a>
+                <details>
+                    <summary class="font-normal hover:bg-base-300">
+                        Facilities
+                    </summary>
+
+                    <ul>
+                        <li><a href="{{ route('statistics-prefixes.index') }}">Statistics Prefixes</a></li>
+                        <li><a href="{{ route('certification-facilities.index') }}">Certification Management</a></li>
+                        <li><a href="{{ route('admin.publications.index') }}">Document Management</a></li>
+                    </ul>
+                </details>
             </li>
 
             <li>
-                <a href="#">System Settings</a>
+                <a href="#">System Settings (Under Construction)</a>
             </li>
         </ul>
     </aside>
