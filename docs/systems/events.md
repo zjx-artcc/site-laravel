@@ -118,7 +118,7 @@ The `assigned_position` and `position_status` columns exist to let staff assign 
 
 ## Permissions & middleware
 
-- **Public routes** (no auth): `GET /events` (`events.index`) and `GET /events/{event}` (`events.show`).
+- **Public routes** (no auth): `GET /events` (`events.index`) and `GET /events/{event}` (`events.show`). The event route accepts only the numeric primary key used by the `events` table, so malformed external IDs resolve to a normal 404 rather than reaching PostgreSQL.
 - **Registration**: `POST /events/{event}/request-position` (`events.request-position.store`) requires `auth`.
 - **Admin / management**: all event management lives under the `admin` prefix, which requires `permission:view dashboard`. The Events department group additionally requires `permission:manage events` and contains:
   - `event-fields` resource → `admin.events.event-fields.*`

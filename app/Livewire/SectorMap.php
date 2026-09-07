@@ -53,7 +53,23 @@ class SectorMap extends Component
     public function mount(): void
     {
         $this->loadFromDatabase();
+    }
 
+    /**
+     * Keep the public Livewire state scalar before Blade renders it.
+     *
+     * Livewire properties are hydrated from the browser on every update. A
+     * malformed palette entry would otherwise be passed directly to Blade's
+     * escaped output and cause `htmlspecialchars()` to throw a TypeError.
+     */
+    public function hydrate(): void
+    {
+        $this->activeSectors = $this->normalizeSectorIds($this->activeSectors);
+    }
+
+    public function updatedActiveSectors(): void
+    {
+        $this->activeSectors = $this->normalizeSectorIds($this->activeSectors);
     }
 
     public function render()
@@ -260,7 +276,7 @@ class SectorMap extends Component
         // shared across all splits so it (and its colors) survives switching
         // maps. Existing palette order is kept so colors stay stable; entries
         // added this session but not painted anywhere also survive reloads.
-        $activeSectors = $this->activeSectors;
+        $activeSectors = $this->normalizeSectorIds($this->activeSectors);
 
         foreach (CenterSector::orderBy('id')->get() as $record) {
             if ($record->active_sector_id === null) {
@@ -283,7 +299,7 @@ class SectorMap extends Component
     /** Append any newly painted sectors to the palette, keeping its order stable. */
     private function reparseActiveSectors(): void
     {
-        $activeSectors = $this->activeSectors;
+        $activeSectors = $this->normalizeSectorIds($this->activeSectors);
 
         foreach ($this->sectors as $activeSectorId) {
             if ($activeSectorId !== null && ! in_array($activeSectorId, $activeSectors, true)) {
@@ -292,5 +308,34 @@ class SectorMap extends Component
         }
 
         $this->activeSectors = $activeSectors;
+    }
+
+    /** @return list<int> */
+    private function normalizeSectorIds(array $sectorIds): array
+    {
+        $normalized = [];
+
+        foreach ($sectorIds as $sectorId) {
+            $sectorId = $this->normalizeSectorId($sectorId);
+
+            if ($sectorId !== null && ! in_array($sectorId, $normalized, true)) {
+                $normalized[] = $sectorId;
+            }
+        }
+
+        return $normalized;
+    }
+
+    private function normalizeSectorId(mixed $sectorId): ?int
+    {
+        if (is_string($sectorId) && ctype_digit($sectorId)) {
+            $sectorId = (int) $sectorId;
+        }
+
+        if (! is_int($sectorId) || $sectorId <= 0 || $sectorId >= 100) {
+            return null;
+        }
+
+        return $sectorId;
     }
 }

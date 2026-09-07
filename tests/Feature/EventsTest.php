@@ -111,6 +111,11 @@ test('the public event page never renders an unsanitized script tag even with le
         ->assertDontSee('<script>alert(1)</script>', false);
 });
 
+test('a non-numeric public event URL returns 404', function () {
+    $this->get('/events/cmmu2pltw0037qq7t2jiy3bk')
+        ->assertNotFound();
+});
+
 test('admin events list renders event titles', function () {
     $this->actingAs(makeEventManager());
 
