@@ -116,7 +116,8 @@ Route::prefix('loa')->middleware('auth')->name('loa.')->group(function () {
 Route::get('/faq', [FaqController::class, 'index'])->name('faq.index');
 
 // Feedback
-Route::get('/feedback', [FeedbackController::class, 'index'])->middleware('auth')->name('feedback.index');
+Route::redirect('/feedback', '/feedback/new');
+Route::get('/feedback/new', [FeedbackController::class, 'index'])->middleware('auth')->name('feedback.index');
 Route::post('/feedback', [FeedbackController::class, 'store'])->middleware('auth')->name('feedback.store');
 
 // Staffing Requests

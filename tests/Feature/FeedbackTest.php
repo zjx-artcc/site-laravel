@@ -18,6 +18,12 @@ beforeEach(function () {
 
 // Submitting feedback
 
+test('the feedback form lives at /feedback/new and the old /feedback path redirects there', function () {
+    expect(route('feedback.index', absolute: false))->toBe('/feedback/new');
+
+    $this->get('/feedback')->assertRedirect('/feedback/new');
+});
+
 test('given a guest, when visiting the feedback form, then they are redirected to login', function () {
     $response = $this->get(route('feedback.index'));
 
