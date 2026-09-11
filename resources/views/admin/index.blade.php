@@ -8,35 +8,35 @@
     use \App\Models\StaffingRequest;
 @endphp
 
-@section('content')
-    <section class="grid grid-cols-10 gap-3 items-start">
+@section('body')
+    <section class="grid grid-cols-2 md:grid-cols-10 gap-3 items-start">
         <div class="col-span-full">
             <h1 class="col-span-full text-2xl text-primary font-bold">Welcome back, {{ auth()->user()->first_name }}!</h1>
-            <p class="">Here's what's going on in vZJX today.</p>
+            <p class="">Here's what's going on in the ARTCC today.</p>
         </div>
 
-        <x-card-component class="col-span-2" title="Total Rostered Users">
+        <x-card-component class="col-span-full lg:col-span-2 min-w-0" title="Total Rostered Users">
             <p class="text-2xl text-primary font-extrabold">{{ $totalRosteredUsers }}</p>
         </x-card-component>
 
-        <x-card-component class="col-span-2" title="Online Controllers">
+        <x-card-component class="col-span-full lg:col-span-2 min-w-0" title="Online Controllers">
             <p class="text-2xl text-primary font-extrabold">{{ $onlineControllers }}</p>
         </x-card-component>
 
-        <x-card-component class="col-span-2" title="Events This Month">
+        <x-card-component class="col-span-full lg:col-span-2 min-w-0" title="Events This Month">
             <p class="text-2xl text-primary font-extrabold">{{ $eventsThisMonth }}</p>
         </x-card-component>
 
-        <x-card-component class="col-span-2" title="Training Assignments">
+        <x-card-component class="col-span-full lg:col-span-2 min-w-0" title="Training Assignments">
             <p class="text-2xl text-primary font-extrabold">{{ $trainingAssignments }}</p>
         </x-card-component>
 
-        <x-card-component class="col-span-2" title="Training Requests">
+        <x-card-component class="col-span-full lg:col-span-2 min-w-0" title="Training Requests">
             <p class="text-2xl text-primary font-extrabold">{{ $trainingRequests }}</p>
         </x-card-component>
 
-        <div class="col-span-6">
-            <x-card-component class="" title="Active Center Split">
+        <div class="col-span-full lg:col-span-6 min-w-0">
+            <x-card-component class="min-w-0" title="Active Center Split">
                 <div class="w-full min-w-0 overflow-x-auto">
                     <livewire:sector-map/>
                 </div>
@@ -44,7 +44,7 @@
         </div>
 
 
-        <x-card-component title="Upcoming Events" class="col-span-2">
+        <x-card-component title="Upcoming Events" class="col-span-full lg:col-span-2 min-w-0">
             <div class="flex justify-between">
                 @if(!$upcomingEvents->isEmpty())
                     <h1 class="font-bold text-base-content">
@@ -91,7 +91,7 @@
             @endif
         </x-card-component>
 
-        <x-card-component title="Latest Announcements" class="col-span-2">
+        <x-card-component title="Latest Announcements" class="col-span-full lg:col-span-2 min-w-0">
             @if($news->isEmpty())
                 <h1 class="text-lg">No recent announcements.</h1>
             @endif

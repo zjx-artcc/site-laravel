@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}"
-      x-data="{ theme: localStorage.getItem('theme') }"
+      x-data="{ theme: localStorage.getItem('theme'), sidebarOpen: false }"
       x-init="$watch('theme', value => value ? localStorage.setItem('theme', value) : localStorage.removeItem('theme'))"
       :data-theme="theme">
 <head>
@@ -9,7 +9,6 @@
 
     <title>@yield('title') - ZJX ARTCC</title>
 
-    {{-- Applied before first paint so a saved preference doesn't flash the system-default theme first --}}
     <script>
         (function () {
             var theme = localStorage.getItem('theme');
@@ -39,18 +38,35 @@
 
 <x-navbar />
 
-<div class="flex flex-1 min-h-0">
+<div class="flex flex-1 min-h-0 relative">
 
-    <aside class="w-64 shrink-0">
+    <button
+        @click="sidebarOpen = !sidebarOpen"
+        class="btn btn-square btn-ghost lg:hidden fixed bottom-4 right-4 z-30 shadow-md bg-primary text-white"
+    >
+        <i class="fa-solid fa-bars"></i>
+    </button>
+
+    <div
+        x-show="sidebarOpen"
+        x-cloak
+        @click="sidebarOpen = false"
+        class="fixed inset-0 bg-black/50 z-20 lg:hidden"
+    ></div>
+
+    <aside
+        class="w-64 shrink-0 fixed lg:static inset-y-0 left-0 z-20 lg:z-0 transform transition-transform duration-200 ease-in-out lg:translate-x-0"
+        :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
+    >
         <ul class="menu bg-base-200 min-h-full w-full p-4">
             <li>
                 <a
-                    href="{{ route('admin.index') }}"
-                    class="{{ request()->routeIs('admin.index')
+                href="{{ route('admin.index') }}"
+                class="{{ request()->routeIs('admin.index')
                             ? 'bg-primary text-primary-content'
                             : 'hover:bg-base-300' }}"
                 >
-                    Dashboard
+                Dashboard
                 </a>
             </li>
 
@@ -76,7 +92,6 @@
                     </summary>
 
                     <ul>
-                        <li><a href="{{ route('admin.training.index') }}">Training Dashboard</a></li>
                         <li><a href="{{ route('training-assignments.index') }}">My Students (TODO)</a></li>
                         <li><a href="{{ route('training-assignments.index') }}">Training Assignments</a></li>
                         <li><a href="{{ route('training-tickets.index') }}">Training Tickets</a></li>
@@ -102,17 +117,17 @@
             </li>
 
             <li>
-                <a href="#">System Settings (Under Construction)</a>
+                <a href="#">System Settings (TODO)</a>
             </li>
         </ul>
     </aside>
 
     <main class="min-w-0 flex-1 p-6">
-        @yield('content')
+        @yield('body')
     </main>
 
 </div>
 
 @livewireScripts
 </body>
-<html>
+</html>
