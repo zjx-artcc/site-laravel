@@ -26,7 +26,7 @@
             @endif
         </div>
         <x-label-slot label="Session Notes">
-            <div id="notes" class='bg-base-100 text-base-content p-2 rounded-md min-h-50 w-full'>{!! \Stevebauman\Purify\Facades\Purify::clean($trainingTicket->notes) !!}</div>
+            <div id="notes" class='bg-base-100 text-base-content p-2 rounded-md min-h-50 w-full rich-text'>{!! \Stevebauman\Purify\Facades\Purify::clean($trainingTicket->notes) !!}</div>
         </x-label-slot>
     </div>
 
@@ -34,7 +34,7 @@
         <div class="card card-body bg-base-300 w-full max-w-3xl mt-6 border border-warning">
             <x-label-slot label="Instructor Notes (staff only)">
                 <p class="text-sm opacity-70 -mt-1 mb-2">Visible only to training staff. The student never sees this.</p>
-                <div class="bg-base-100 border border-base-300 rounded-md p-4 min-h-24 prose max-w-none">{!! $trainingTicket->instructor_notes ? \Stevebauman\Purify\Facades\Purify::clean($trainingTicket->instructor_notes) : 'No instructor notes.' !!}</div>
+                <div class="bg-base-100 border border-base-300 rounded-md p-4 min-h-24 rich-text">{!! $trainingTicket->instructor_notes ? \Stevebauman\Purify\Facades\Purify::clean($trainingTicket->instructor_notes) : 'No instructor notes.' !!}</div>
             </x-label-slot>
         </div>
     @endif

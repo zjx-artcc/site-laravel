@@ -3,6 +3,26 @@
 
 [x-cloak] { display: none !important; }
 
+/* Quill-authored notes, rendered read-only. Tailwind's preflight clears list
+   styling, so a list arrives here with no markers or indent at all. Quill also
+   emits <ol> for bulleted lists — the type lives in a data-list attribute the
+   sanitizer strips — so render every list as bullets, which is what the notes
+   editors produce in practice (neither has a list button).
+   Indents use margin, not padding: the marker sits outside the content box, so
+   padding would strand the bullet at the parent's indent. The step is 0.75em
+   because Quill numbers levels by keypress, not depth, and pasted content
+   routinely skips every other level. */
+.rich-text :where(ul, ol) { list-style: disc; padding-left: 1.5em; margin: 0.75em 0; }
+.rich-text :where(p) { margin: 0.75em 0; }
+.rich-text :where(.ql-indent-1) { margin-left: 0.75em; }
+.rich-text :where(.ql-indent-2) { margin-left: 1.5em; }
+.rich-text :where(.ql-indent-3) { margin-left: 2.25em; }
+.rich-text :where(.ql-indent-4) { margin-left: 3em; }
+.rich-text :where(.ql-indent-5) { margin-left: 3.75em; }
+.rich-text :where(.ql-indent-6) { margin-left: 4.5em; }
+.rich-text :where(.ql-indent-7) { margin-left: 5.25em; }
+.rich-text :where(.ql-indent-8) { margin-left: 6em; }
+
 /* Point Tailwind's dark: variant at the theme actually in use. data-theme is only
    present once someone picks a theme, so the media query covers the untouched
    default the way daisyUI's own prefersdark does. */
