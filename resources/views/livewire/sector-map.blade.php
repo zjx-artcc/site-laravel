@@ -5,7 +5,7 @@
 
 <div class="w-full max-w-2xl mx-auto aspect-square flex flex-col">
     <div class="shrink-0">
-        <p class="text-sm opacity-70 mb-3">Live ZJX center sector assignments.</p>
+        <div class ="-h-5 mb-3"></div>
 
         {{-- Split selector --}}
         <div class="flex flex-row gap-x-6 mb-3">
