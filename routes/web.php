@@ -231,6 +231,13 @@ Route::prefix('admin')->middleware('permission:view dashboard')->group(function 
 
         Route::put('visit-requests/{visitRequest}/deny', [VisitFacilityController::class, 'deny'])
             ->name('visit.deny');
+
+        Route::get('statistics/quarterly', [StatisticsController::class, 'quarterly'])->name('statistics.quarterly');
+        Route::get('statistics/quarterly/export', [StatisticsController::class, 'exportQuarterly'])->name('statistics.quarterly.export');
+    });
+
+    Route::middleware('permission:remove inactive controllers')->group(function () {
+        Route::post('statistics/quarterly/remove', [StatisticsController::class, 'removeInactive'])->name('statistics.quarterly.remove');
     });
 
     Route::middleware('permission:manage loas')->group(function () {

@@ -88,6 +88,7 @@
                             @endif
                         </a>
                     </li>
+                    <li><a href={{ route('statistics.quarterly') }}>Roster Purge Assistant</a></li>
                     <li>
                         <a href={{ route('loa.manage') }}>LOA Requests
                             @if($pendingLoas > 0)

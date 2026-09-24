@@ -188,7 +188,7 @@ class TrainingAssignmentController extends Controller
             return redirect()->back(400)->with('error', 'Training assignment not found');
         }
 
-        if ($assignment->user_id == $user->id || $user->hasPermissionTo('training-tickets:write')) {
+        if ($assignment->user_id == $user->id || $user->hasPermissionTo('manage students')) {
             $assignment->active = false;
             $assignment->status = TrainingStatus::FORFEIT;
             $assignment->save();
