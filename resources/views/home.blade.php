@@ -195,7 +195,6 @@
 
         <main class="order-1 lg:order-2 w-full min-w-0">
             <x-card-component title="Active Center Split">
-                <div></div>
                 <div class="w-full min-w-0 overflow-x-auto">
                     <livewire:sector-map/>
                 </div>
