@@ -31,7 +31,7 @@
 
                 <label class="form-control flex flex-col">
                     <span class="label-text font-semibold mb-1">Event Name</span>
-                    <input type="text" name="name" class="input input-bordered w-full" placeholder="e.g. Jacksonville Fly-In"
+                    <input type="text" name="name" class="input input-bordered w-full"
                            value="{{ old('name') }}" required>
                     @error('name')
                         <span class="text-error text-sm mt-1">{{ $message }}</span>
@@ -49,10 +49,7 @@
 
                 <label class="form-control flex flex-col">
                     <span class="label-text font-semibold mb-1">Description</span>
-                    <span class="text-sm opacity-70 mb-1">Tell us about your planned route, how many pilots are
-                        flying, what kind of event it is, and any specific positions you'll need staffed.</span>
                     <textarea name="description" rows="6" class="textarea textarea-bordered w-full resize-none"
-                              placeholder="Include airports, routes, pilot count, and any other staffing requirements needed."
                               required>{{ old('description') }}</textarea>
                     @error('description')
                         <span class="text-error text-sm mt-1">{{ $message }}</span>
