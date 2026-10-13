@@ -1,15 +1,24 @@
 <?php
 
+use App\Enums\ControllerRating;
 use App\Enums\EventType;
+use App\Enums\FeedbackExperience;
+use App\Enums\FeedbackStatus;
 use App\Enums\VisitRequestStatus;
 use App\Jobs\AddUserToVisitingRoster;
 use App\Jobs\SyncRoster;
 use App\Jobs\SyncVatsimSessions;
 use App\Jobs\UpdateOnlineControllers;
+use App\Livewire\SectorMap;
+use App\Models\AtcBooking;
+use App\Models\CertificationFacility;
+use App\Models\CertificationLevel;
 use App\Models\Event;
 use App\Models\EventPosition;
 use App\Models\EventPositionPreset;
+use App\Models\Feedback;
 use App\Models\ManualContributor;
+use App\Models\News;
 use App\Models\SoloCert;
 use App\Models\StaffingRequest;
 use App\Models\User;
@@ -17,6 +26,7 @@ use App\Models\VisitorRequest;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
+use Livewire\Livewire;
 use Spatie\Activitylog\Models\Activity;
 
 beforeEach(function () {
@@ -302,6 +312,68 @@ test('roster sync records a completion entry and each controller removed', funct
     expect($removal->causer_id)->toBeNull();
 });
 
+test('staff position assignment and removal are recorded in the audit log', function () {
+    $firstAtm = User::factory()->create(['id' => 300]);
+    $secondAtm = User::factory()->create(['id' => 301]);
+
+    $now = (new DateTime)->format('Y-m-d H:i:s');
+    $currentStaffCid = 300;
+
+    $rosterEntry = fn (int $cid) => [
+        'cid' => $cid, 'fname' => 'Test', 'lname' => 'Controller', 'rating' => 6,
+        'email' => "test{$cid}@example.com", 'facility' => 'ZJX',
+        'created_at' => $now, 'updated_at' => $now, 'facility_join' => $now,
+        'flag_needbasic' => false, 'flag_xferOverride' => false,
+        'flag_homecontroller' => true, 'lastactivity' => $now,
+        'flag_broadcastOptedIn' => false, 'flag_preventStaffAssign' => false,
+        'discord_id' => null, 'flag_nameprivacy' => false,
+        'last_competency_date' => $now, 'promotion_eligible' => false,
+        'transfer_eligible' => false, 'roles' => [], 'isMentor' => false,
+        'isSupIns' => false, 'last_promotion' => $now,
+    ];
+
+    // A single fake reading a by-reference variable, rather than two separate
+    // Http::fake() calls: Http::fake() stacks stubs and resolves to the FIRST
+    // match, so a second call wouldn't actually override the first roster/cid.
+    Http::fake(function ($request) use (&$currentStaffCid, $rosterEntry, $now) {
+        $url = $request->url();
+
+        if (str_contains($url, '/roster/both')) {
+            return Http::response(['data' => [$rosterEntry($currentStaffCid)]]);
+        }
+
+        if (str_contains($url, '/v2/facility/')) {
+            return Http::response(['data' => ['facility' => [
+                'info' => array_fill_keys(['atm', 'datm', 'ta', 'wm', 'ec', 'fe'], $currentStaffCid),
+                'roles' => [['cid' => $currentStaffCid, 'role' => 'ATM', 'created_at' => $now]],
+            ]]]);
+        }
+
+        return Http::response([], 404);
+    });
+
+    (new SyncRoster)->handle();
+
+    $assigned = Activity::where('description', 'Staff position assigned')
+        ->where('subject_id', $firstAtm->id)
+        ->first();
+
+    expect($assigned)->not->toBeNull();
+    expect($assigned->properties['attributes']['title'])->toBe('ATM');
+
+    $currentStaffCid = 301;
+    (new SyncRoster)->handle();
+
+    $removed = Activity::where('description', 'Removed from staff position')
+        ->where('subject_id', $firstAtm->id)
+        ->first();
+
+    expect($removed)->not->toBeNull();
+    expect($removed->properties['old']['title'])->toBe('ATM');
+    expect(Activity::where('description', 'Staff position assigned')->where('subject_id', $secondAtm->id)->exists())
+        ->toBeTrue();
+});
+
 test('job entries render on the admin audit log page', function () {
     config()->set('app.vatsim_api_url', 'https://api.vatsim.net');
     config()->set('app.vatsim_statistics_page_size', 50);
@@ -317,4 +389,128 @@ test('job entries render on the admin audit log page', function () {
     $response->assertStatus(200);
     $response->assertSee('VATSIM statistics sync page complete');
     $response->assertSee('Sessions Accepted');
+});
+
+test('feedback status changes are recorded in the audit log', function () {
+    $staff = User::factory()->create();
+    $this->actingAs($staff);
+
+    $feedback = Feedback::create([
+        'user_id' => User::factory()->create()->id,
+        'controller_id' => User::factory()->create()->id,
+        'position' => 'JAX_TWR',
+        'experience' => FeedbackExperience::GOOD,
+        'comments' => 'Great service.',
+        'status' => FeedbackStatus::PENDING,
+    ]);
+
+    $feedback->update(['status' => FeedbackStatus::STASHED]);
+
+    $stash = Activity::where('subject_type', Feedback::class)->where('event', 'updated')->first();
+
+    expect($stash)->not->toBeNull();
+    expect($stash->causer_id)->toBe($staff->id);
+    expect($stash->properties['attributes']['status'])->toBe(FeedbackStatus::STASHED->value);
+});
+
+test('releasing feedback is recorded in the audit log even though the update bypasses Eloquent events', function () {
+    $staff = User::factory()->create();
+    $staff->givePermissionTo('view dashboard', 'feedback:read', 'feedback:write');
+    $this->actingAs($staff);
+
+    $feedback = Feedback::create([
+        'user_id' => User::factory()->create()->id,
+        'controller_id' => User::factory()->create(['rostered' => true])->id,
+        'position' => 'JAX_TWR',
+        'experience' => FeedbackExperience::GOOD,
+        'comments' => 'Great service.',
+        'status' => FeedbackStatus::PENDING,
+    ]);
+
+    $this->put(route('admin.feedback.release', $feedback));
+
+    $release = Activity::where('description', 'Feedback released')->first();
+
+    expect($release)->not->toBeNull();
+    expect($release->subject_id)->toBe($feedback->id);
+    expect($release->causer_id)->toBe($staff->id);
+    expect($release->properties['attributes']['status'])->toBe(FeedbackStatus::RELEASED->value);
+});
+
+test('certification facility and level changes are recorded in the audit log', function () {
+    $admin = User::factory()->create();
+    $this->actingAs($admin);
+
+    $facility = CertificationFacility::create(['identifier' => 'zjx', 'name' => 'Jacksonville', 'order' => 1]);
+
+    expect(Activity::where('subject_type', CertificationFacility::class)->where('event', 'created')->first()->causer_id)
+        ->toBe($admin->id);
+
+    $facility->update(['name' => 'Jacksonville ARTCC']);
+
+    expect(Activity::where('subject_type', CertificationFacility::class)->where('event', 'updated')->exists())->toBeTrue();
+
+    $level = CertificationLevel::create([
+        'facility_id' => $facility->id,
+        'level' => 1,
+        'name' => 'Ground Control',
+        'abbreviation' => 'GC',
+    ]);
+
+    $level->update(['name' => 'Ground']);
+    $level->delete();
+
+    expect(Activity::where('subject_type', CertificationLevel::class)->where('event', 'created')->exists())->toBeTrue();
+    expect(Activity::where('subject_type', CertificationLevel::class)->where('event', 'updated')->exists())->toBeTrue();
+    expect(Activity::where('subject_type', CertificationLevel::class)->where('event', 'deleted')->exists())->toBeTrue();
+});
+
+test('news article changes are recorded in the audit log', function () {
+    $admin = User::factory()->create();
+    $this->actingAs($admin);
+
+    $news = News::create(['title' => 'New Policy', 'content' => 'Details.', 'published_at' => now()]);
+
+    $news->update(['title' => 'Updated Policy']);
+
+    $update = Activity::where('subject_type', News::class)->where('event', 'updated')->first();
+
+    expect($update)->not->toBeNull();
+    expect($update->causer_id)->toBe($admin->id);
+    expect($update->properties['attributes']['title'])->toBe('Updated Policy');
+});
+
+test('an ATC booking is recorded in the audit log', function () {
+    $controller = User::factory()->create();
+    $this->actingAs($controller);
+
+    AtcBooking::create([
+        'user_id' => $controller->id,
+        'position' => 'JAX_TWR',
+        'start' => now()->addHour(),
+        'end' => now()->addHours(2),
+    ]);
+
+    $entry = Activity::where('subject_type', AtcBooking::class)->where('event', 'created')->first();
+
+    expect($entry)->not->toBeNull();
+    expect($entry->causer_id)->toBe($controller->id);
+    expect($entry->properties['attributes']['position'])->toBe('JAX_TWR');
+});
+
+test('saving a sector map split is recorded in the audit log', function () {
+    $staff = User::factory()->create(['rating' => ControllerRating::C1]);
+    $this->actingAs($staff);
+
+    Livewire::test(SectorMap::class)
+        ->call('setSplit', 'high')
+        ->call('enableEdit')
+        ->call('assignSector', 1)
+        ->call('save');
+
+    $entry = Activity::where('description', 'Sector map split saved')->first();
+
+    expect($entry)->not->toBeNull();
+    expect($entry->causer_id)->toBe($staff->id);
+    expect($entry->properties['attributes']['split'])->toBe('high');
 });

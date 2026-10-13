@@ -45,12 +45,25 @@ need to add auditing to a model or work on the audit-log viewer.
 | `Event` | `app/Models/Event.php` | `title`, `description`, `start`, `end`, `type`, `hidden`, `positions_locked`, `published`, `archived`, `archived_at` |
 | `EventPosition` | `app/Models/EventPosition.php` | `event_id`, `user_id`, `requested_position`, `assigned_position`, `position_status` |
 | `EventPositionPreset` | `app/Models/EventPositionPreset.php` | `name`, `positions` |
+| `Feedback` | `app/Models/Feedback.php` | `status` |
+| `CertificationFacility` | `app/Models/CertificationFacility.php` | `identifier`, `name`, `order` |
+| `CertificationLevel` | `app/Models/CertificationLevel.php` | `facility_id`, `level`, `name`, `abbreviation` |
+| `News` | `app/Models/News.php` | `title`, `content`, `published_at` |
+| `AtcBooking` | `app/Models/AtcBooking.php` | `user_id`, `position`, `start`, `end`, `description` |
 
 All use `LogOptions::defaults()`, so only the listed attributes are logged.
-`Publication`, `PublicationCategory`, `Event`, and `EventPosition` additionally
-call `logOnlyDirty()` — useful for models where a save often only touches one
-field (e.g. toggling `Event::published`), so the log shows just what changed
-rather than the full attribute set on every save.
+`Publication`, `PublicationCategory`, `Event`, `EventPosition`, `Feedback`, and
+`News` additionally call `logOnlyDirty()` — useful for models where a save
+often only touches one field (e.g. toggling `Event::published`, or a feedback
+status transition), so the log shows just what changed rather than the full
+attribute set on every save.
+
+`Feedback::release()` (`app/Http/Controllers/FeedbackController.php`) is a
+partial exception: it uses a conditional `Feedback::whereKey(...)->update(...)`
+to avoid a release race, which — like the examples in the gotchas below —
+bypasses Eloquent events. The controller writes a manual `activity()` entry
+(`Feedback released`) right after, so `stash`/`unstash` are caught by the
+trait but `release` is logged explicitly.
 
 `UserCertification` (`app/Models/UserCertification.php`) is audited
 differently: instead of the `LogsActivity` trait, a `static::created`/
@@ -83,11 +96,16 @@ activity()->withProperties(['attributes' => [
 
 | Job | Entry | Notes |
 | --- | --- | --- |
-| `SyncRoster` | `Roster sync complete` | Plus one `Removed from roster` entry per departing controller, with that user as the subject |
+| `SyncRoster` | `Roster sync complete` | Plus one `Removed from roster` entry per departing controller, and one `Staff position assigned` / `Removed from staff position` entry per staff title change (diffed before/after `Staff::truncate()`, for the same reason roster departures are diffed), each with that user as the subject |
 | `SyncVatsimSessions` | `VATSIM statistics sync page complete` | One entry per paginated API page: offset/next offset, sessions accepted/skipped, recompute operations |
 | `SyncTrainingTickets` | `Training ticket sync complete` | Tickets pending/synced/failed |
 | `UpdateOnlineControllers` | `Online controller sync failed` | **Failure only** — see below |
 | `AddUserToVisitingRoster` | `Added user to visiting roster` / `Failed to add user to visiting roster` | Subject is the affected `User`, when found |
+
+`App\Livewire\SectorMap::save()` is logged the same way, outside the job
+table: it replaces a whole split's `CenterSector` rows (delete then recreate),
+which also bypasses Eloquent events, so it writes one `Sector map split saved`
+entry per split touched instead of one per row.
 
 These entries have **no `event`** (the viewer falls back to `description` for
 the action badge), **no causer** (they run unattended, so the Who column shows
@@ -233,3 +251,11 @@ So a viewer must have both `view dashboard` and `view audit logs`.
   user as subject/causer.
 - **Timestamps are emitted in UTC/Zulu** in the export (`created_at->utc()`),
   regardless of the app timezone.
+- **Role/permission changes have no dedicated audit coverage.** There is no
+  admin UI for editing `spatie/laravel-permission` roles directly — the only
+  place roles are assigned/removed is `SyncRoster` (`assignRoles()`,
+  `clearUserRoles()`, `syncRosteredRole()`), driven by VATUSA staff titles and
+  roster membership. That's covered indirectly: a staff title change shows up
+  as `Staff position assigned` / `Removed from staff position` (see Job
+  entries above), but the resulting `assignRole()`/`removeRole()` calls
+  themselves, and the `rostered` role toggle, are not separately logged.

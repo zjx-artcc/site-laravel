@@ -150,12 +150,35 @@ class SyncRoster implements ShouldBeUnique, ShouldQueue
             throw new \Exception('Failed to fetch facility info: '.$facilityInfo->status().' - '.$facilityInfo->body());
         }
 
+        // Snapshot staff titles before the sync. Staff is written with
+        // truncate()+create(), which bypasses Eloquent events, so assignment
+        // changes have to be recorded explicitly rather than by LogsActivity.
+        $before = Staff::pluck('title_short', 'user_id')->all();
+
         $this->clearUserRoles();
         Staff::truncate();
 
         $infoDTO = new VatusaFacilityInfoDTO($facilityInfo->json()['data']);
 
         Staff::fromFacilityInfoDTO($infoDTO);
+
+        $after = Staff::pluck('title_short', 'user_id')->all();
+
+        foreach ($after as $userId => $title) {
+            if ((($before[$userId] ?? null) !== $title) && ($user = User::find($userId))) {
+                activity()->performedOn($user)
+                    ->withProperties(['attributes' => ['title' => $title]])
+                    ->log('Staff position assigned');
+            }
+        }
+
+        foreach ($before as $userId => $title) {
+            if ((! isset($after[$userId])) && ($user = User::find($userId))) {
+                activity()->performedOn($user)
+                    ->withProperties(['old' => ['title' => $title]])
+                    ->log('Removed from staff position');
+            }
+        }
 
         $this->assignRoles();
     }

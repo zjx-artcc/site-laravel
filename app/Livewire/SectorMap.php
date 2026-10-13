@@ -226,6 +226,8 @@ class SectorMap extends Component
         foreach ($this->pendingSectors as $split => $sectors) {
             CenterSector::where('split', $split)->delete();
 
+            $saved = [];
+
             foreach ($sectors as $sectorId => $activeSectorId) {
                 if ($sectorId < 100 && $activeSectorId !== null) {
                     CenterSector::create([
@@ -233,8 +235,18 @@ class SectorMap extends Component
                         'sector_id' => $sectorId,
                         'active_sector_id' => $activeSectorId,
                     ]);
+
+                    $saved[$sectorId] = $activeSectorId;
                 }
             }
+
+            // Each split is replaced wholesale (delete then recreate every row),
+            // which bypasses Eloquent events for individual sectors — log one
+            // summary entry per split instead of one per row.
+            activity()->withProperties(['attributes' => [
+                'split' => $split,
+                'active_sectors' => $saved,
+            ]])->log('Sector map split saved');
         }
 
         $this->pendingSectors = [];
