@@ -192,6 +192,16 @@ class SyncVatsimSessions implements ShouldQueue
             self::dispatch($this->from, $this->to, $nextOffset);
         }
 
+        activity()->withProperties(['attributes' => [
+            'from' => $from->toIso8601String(),
+            'to' => $to->toIso8601String(),
+            'offset' => $this->offset,
+            'next_offset' => count($sessions) === $limit ? $nextOffset : null,
+            'sessions_accepted' => $accepted,
+            'sessions_skipped' => $skipped,
+            'recompute_operations' => $recomputeOperations,
+        ]])->log('VATSIM statistics sync page complete');
+
         Log::info('VATSIM statistics sync page complete', [
             'from' => $from->toIso8601String(),
             'to' => $to->toIso8601String(),

@@ -36,6 +36,8 @@ class SyncRoster implements ShouldBeUnique, ShouldQueue
     {
         $ROSTER_API_ENDPOINT = config('app.vatusa_api_url').'/v2/facility/'.config('app.vatusa_facility').'/roster/both';
 
+        Log::debug('Fetching roster from VATUSA', ['endpoint' => $ROSTER_API_ENDPOINT]);
+
         $rosterData = Http::retry(4, fn ($attempt) => $attempt * 1000)->timeout(20)->get($ROSTER_API_ENDPOINT, [
             'apikey' => config('app.vatusa_api_key'),
         ]);
@@ -45,12 +47,31 @@ class SyncRoster implements ShouldBeUnique, ShouldQueue
         }
 
         $roster = $rosterData->json();
+
+        // Snapshot membership before the sync. The roster is written with
+        // upsert()/mass update(), which bypass Eloquent events, so departures
+        // have to be recorded explicitly rather than by LogsActivity.
+        $before = User::where('rostered', true)->pluck('id')->all();
+
         User::where(['rostered' => true])->update(['rostered' => false]);
 
         for ($i = 0; $i < count($roster['data']); $i++) {
             $vatusaUser = new VatusaRosterUser($roster['data'][$i]);
 
             User::updateFromVatusa($vatusaUser);
+        }
+
+        $departed = array_diff($before, User::where('rostered', true)->pluck('id')->all());
+
+        Log::debug('Roster membership diff', [
+            'roster_size' => count($roster['data']),
+            'departed_cids' => array_values($departed),
+        ]);
+
+        foreach (User::whereIn('id', $departed)->get() as $user) {
+            activity()->performedOn($user)
+                ->withProperties(['attributes' => ['cid' => $user->id, 'name' => $user->name]])
+                ->log('Removed from roster');
         }
 
         // Clear hanging OIs
@@ -129,12 +150,35 @@ class SyncRoster implements ShouldBeUnique, ShouldQueue
             throw new \Exception('Failed to fetch facility info: '.$facilityInfo->status().' - '.$facilityInfo->body());
         }
 
+        // Snapshot staff titles before the sync. Staff is written with
+        // truncate()+create(), which bypasses Eloquent events, so assignment
+        // changes have to be recorded explicitly rather than by LogsActivity.
+        $before = Staff::pluck('title_short', 'user_id')->all();
+
         $this->clearUserRoles();
         Staff::truncate();
 
         $infoDTO = new VatusaFacilityInfoDTO($facilityInfo->json()['data']);
 
         Staff::fromFacilityInfoDTO($infoDTO);
+
+        $after = Staff::pluck('title_short', 'user_id')->all();
+
+        foreach ($after as $userId => $title) {
+            if ((($before[$userId] ?? null) !== $title) && ($user = User::find($userId))) {
+                activity()->performedOn($user)
+                    ->withProperties(['attributes' => ['title' => $title]])
+                    ->log('Staff position assigned');
+            }
+        }
+
+        foreach ($before as $userId => $title) {
+            if ((! isset($after[$userId])) && ($user = User::find($userId))) {
+                activity()->performedOn($user)
+                    ->withProperties(['old' => ['title' => $title]])
+                    ->log('Removed from staff position');
+            }
+        }
 
         $this->assignRoles();
     }
@@ -166,7 +210,10 @@ class SyncRoster implements ShouldBeUnique, ShouldQueue
             $this->syncRosteredRole();
             Cache::forget('vatsim-statistics:rostered-cids');
 
-            Log::info('Roster sync completed successfully.');
+            activity()->withProperties(['attributes' => [
+                'rostered_controllers' => User::where('rostered', true)->count(),
+                'staff_positions' => Staff::count(),
+            ]])->log('Roster sync complete');
         } catch (\Exception $e) {
             // Log error
             Log::error('Error syncing roster: '.$e->getMessage()."\n".$e->getTraceAsString(), [
