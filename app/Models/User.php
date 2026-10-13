@@ -13,17 +13,21 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Laravel\Scout\Searchable;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, HasRoles, LogsActivity, Notifiable, Searchable;
+
+    private const PROFILE_IMAGE_DIRECTORY = 'profile/';
+
+    private const DEFAULT_PROFILE_IMAGE = 'images/default_profile.jpg';
 
     /**
      * The primary key is the VATSIM CID, assigned explicitly rather than auto-incremented.
@@ -104,7 +108,10 @@ class User extends Authenticatable
         $user = static::upsert([
             'id' => $vatusaUser->cid,
             'first_name' => ucfirst($vatusaUser->firstName),
-            'last_name' => ucfirst($vatusaUser->lastName),
+            // VATUSA always sends the real last name regardless of the privacy flag;
+            // redaction to the CID happens locally and self-heals on the next sync
+            // if the controller later disables name privacy.
+            'last_name' => $vatusaUser->namePrivacy ? (string) $vatusaUser->cid : ucfirst($vatusaUser->lastName),
             'email' => $vatusaUser->email,
             'rating' => $vatusaUser->rating,
             'joined_at' => $vatusaUser->joinedFacility,
@@ -138,6 +145,41 @@ class User extends Authenticatable
         return Attribute::make(
             get: fn (mixed $value, array $attributes) => ucfirst($attributes['last_name'].', '.ucfirst($attributes['first_name']))
         );
+    }
+
+    /**
+     * Return the configured public-disk URL for an uploaded profile image.
+     *
+     * Older records stored a URL-like `storage/profile/...` value; accept that
+     * representation while keeping the database value as a disk-relative path
+     * for all new uploads.
+     */
+    protected function profileImageUrl(): Attribute
+    {
+        return Attribute::get(function (): string {
+            $path = $this->profileImageStoragePath();
+
+            return $path
+                ? Storage::disk('public')->url($path)
+                : asset(self::DEFAULT_PROFILE_IMAGE);
+        });
+    }
+
+    /**
+     * Get a validated public-disk path for this user's uploaded profile image.
+     */
+    public function profileImageStoragePath(): ?string
+    {
+        if (blank($this->profile_image_route)) {
+            return null;
+        }
+
+        $path = ltrim($this->profile_image_route, '/');
+        $path = str_starts_with($path, 'storage/')
+            ? substr($path, strlen('storage/'))
+            : $path;
+
+        return str_starts_with($path, self::PROFILE_IMAGE_DIRECTORY) ? $path : null;
     }
 
     protected function firstName(): Attribute
@@ -191,6 +233,11 @@ class User extends Authenticatable
         return $this->hasMany(VisitorRequest::class, 'user_id')->orderBy('created_at', 'desc');
     }
 
+    public function loas(): HasMany
+    {
+        return $this->hasMany(Loa::class, 'user_id')->orderBy('created_at', 'desc');
+    }
+
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
@@ -200,6 +247,27 @@ class User extends Authenticatable
     public function certifications(): HasMany
     {
         return $this->hasMany(UserCertification::class, 'user_id');
+    }
+
+    /**
+     * The highest certification level (by `level` tier) this user holds in the
+     * given facility, or null if uncertified there. Operates on the loaded
+     * `certifications.certificationLevel` collection to avoid per-cell queries
+     * when the relation is eager-loaded (e.g. on the roster).
+     */
+    public function highestCertificationLevelFor(int $facilityId): ?CertificationLevel
+    {
+        return $this->certifications
+            ->map(fn (UserCertification $c) => $c->certificationLevel)
+            ->filter(fn (?CertificationLevel $level) => $level && $level->facility_id === $facilityId)
+            ->sortByDesc('level')
+            ->first();
+    }
+
+    public function hasCertificationLevel(int $certificationLevelId): bool
+    {
+        return $this->certifications
+            ->contains('certification_level_id', $certificationLevelId);
     }
 
     public function toSearchableArray(): array
@@ -216,13 +284,13 @@ class User extends Authenticatable
     public function events()
     {
         return $this->belongsToMany(Event::class, 'event_positions')
-            ->withPivot('requested_position', 'start', 'end', 'note', 'position_status')
+            ->withPivot('requested_position', 'assigned_position', 'start', 'end', 'assigned_start', 'assigned_end', 'notes', 'position_status')
             ->withTimestamps();
     }
 
     public static function createFromVatusa(int $id)
     {
-        $userData = Http::get(config('app.vatusa_api_url').'/v2/user/'.$id, [
+        $userData = Http::retry(2, 500)->timeout(20)->get(config('app.vatusa_api_url').'/v2/user/'.$id, [
             'apikey' => config('app.vatusa_api_key'),
         ])->throw()->json()['data'] ?? throw new \Exception('Failed to fetch user data for CID '.$id);
 

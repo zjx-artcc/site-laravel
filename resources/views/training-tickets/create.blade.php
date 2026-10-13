@@ -105,13 +105,43 @@
 
             <br>
 
-            <label for="notes" class="label">Notes</label>
+            <label for="notes" class="label">Session Notes</label>
+            <p class="text-sm opacity-70 mb-1">Shared with the student &mdash; they see this on their training ticket.</p>
             <textarea name="notes" hidden></textarea>
             <div id="editor" class='bg-base-100 text-base-content min-h-50'>
                 {!! old('notes') !!}
             </div>
 
             <br>
+
+            <label for="instructor_notes" class="label">Instructor Notes (Optional)</label>
+            <p class="text-sm opacity-70 mb-1">Visible only to training staff. The student never sees this. Markdown shortcuts are supported.</p>
+            @error('instructor_notes')
+                <p class="text-error">{{ $message }}</p>
+            @enderror
+            <x-markdown-editor name="instructor_notes" :content="old('instructor_notes')" />
+
+            <br>
+
+            @if($certificationFacilities->isNotEmpty())
+                <label for="certification_level_id" class="label">Issue Certification (optional)</label>
+                <select name="certification_level_id" id="certification_level_id" class="select">
+                    <option value="">Do not issue a certification</option>
+                    @foreach($certificationFacilities as $facility)
+                        @if($facility->certificationLevels->isNotEmpty())
+                            <optgroup label="{{ $facility->identifier }} — {{ $facility->name }}">
+                                @foreach($facility->certificationLevels as $level)
+                                    <option value="{{ $level->id }}" @selected(old('certification_level_id') == $level->id)>
+                                        {{ $level->name }} ({{ $level->abbreviation }})
+                                    </option>
+                                @endforeach
+                            </optgroup>
+                        @endif
+                    @endforeach
+                </select>
+
+                <br>
+            @endif
 
             <div class="flex flex-row max-w-full">
                 <input type="checkbox" class="checkbox mr-2" name="confirm" required>

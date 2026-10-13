@@ -73,7 +73,7 @@ Application code lives under `app/`. The most important directories:
 | --- | --- |
 | `app/DTOs/` | Plain data objects for external API payloads and internal transfer — e.g. `OnlineControllerDTO`, `VatusaRosterUser`, `VatusaFacilityInfoDTO`, `VatusaRole`, `VisitingChecklistDTO`. |
 | `app/Enums/` | PHP enums: `ControllerRating`, `EventType`, `TrainingStatus`, `TrainingType`, `VisitRequestStatus`. |
-| `app/Jobs/` | Queued jobs: `SyncRoster`, `UpdateOnlineControllers`, `SyncTrainingTickets`, `AddUserToVisitingRoster`, `CreateVatusaSoloCert`, `RevokeVatusaSoloCert`, `SendTrainingRequestToWebhook`. |
+| `app/Jobs/` | Queued jobs: `SyncRoster`, `UpdateOnlineControllers`, `SyncVatsimSessions`, `SyncTrainingTickets`, `AddUserToVisitingRoster`, `CreateVatusaSoloCert`, `RevokeVatusaSoloCert`, `SendTrainingRequestToWebhook`. |
 | `app/Livewire/` | Class-based Livewire components (e.g. `EventTable`, `UserTable`, `TrainingAssignmentsTable`, `CreateEvent`, `EventRegistration`). Their Blade templates live in `resources/views/livewire/`. |
 | `app/Mail/` | Mailables: `Welcome`, training and solo-cert notifications, and visitor-request notifications. |
 | `app/Models/` | Eloquent models: `User`, `Event`, `EventPosition`, `TrainingTicket`, `TrainingAssignment`, `SoloCert`, `VisitorRequest`, `CertificationFacility`, `CertificationLevel`, `UserCertification`, `OnlineController`, `Staff`, and others. |
@@ -130,11 +130,13 @@ The scheduler is defined in `routes/console.php` (the console entry registered b
 | --- | --- | --- |
 | `Schedule::job(new SyncRoster())` | `app/Jobs/SyncRoster.php` | Every two hours |
 | `Schedule::job(new UpdateOnlineControllers())` | `app/Jobs/UpdateOnlineControllers.php` | Every minute |
+| `Schedule::call(...SyncVatsimSessions::dispatch(...))` | `app/Jobs/SyncVatsimSessions.php` | Every six hours |
 
 `SyncRoster` pulls the controller roster from VATUSA; `UpdateOnlineControllers` refreshes
-who is currently online. Both are covered in [VATSIM integration](vatsim-integration.md)
-and [roster and membership](systems/roster-and-membership.md). In local/development you can
-trigger these manually via the dev-only `/sync` route.
+who is currently online; and `SyncVatsimSessions` imports historical controller activity.
+All are covered in [VATSIM integration](vatsim-integration.md) and [roster and
+membership](systems/roster-and-membership.md). In local/development you can trigger the
+roster sync manually via the dev-only `/sync` route.
 
 Because scheduled work is dispatched as queued jobs, a queue worker and the scheduler both
 need to run. `composer run dev` starts `php artisan serve`, `php artisan queue:listen`,

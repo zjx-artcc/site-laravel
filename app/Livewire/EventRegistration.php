@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\Event;
 use App\Models\EventPosition;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
@@ -40,16 +41,35 @@ class EventRegistration extends Component
     public function mount(Event $event)
     {
         $authenticatedUser = Auth::user();
+
         $this->event = $event;
         $this->positions = $event->presetPositions ?? [];
         $this->selectedPosition = '';
 
-        $registration = EventPosition::where('user_id', $authenticatedUser->id)->where('event_id', $event->id)->first();
+        // Display event times as UTC
+        $this->start = $event->start
+            ->utc()
+            ->format('Y-m-d\TH:i');
+
+        $this->end = $event->end
+            ->utc()
+            ->format('Y-m-d\TH:i');
+
+        $registration = EventPosition::where('user_id', $authenticatedUser->id)
+            ->where('event_id', $event->id)
+            ->first();
 
         if ($registration) {
             $this->selectedPosition = $registration->requested_position;
-            $this->start = $registration->start;
-            $this->end = $registration->end;
+
+            $this->start = $registration->start
+                ->utc()
+                ->format('Y-m-d\TH:i');
+
+            $this->end = $registration->end
+                ->utc()
+                ->format('Y-m-d\TH:i');
+
             $this->notes = $registration->notes;
             $this->submitted = true;
         }
@@ -74,19 +94,34 @@ class EventRegistration extends Component
                 'after:start',
                 'before_or_equal:'.$this->event->end->toDateTimeString(),
             ],
+        ], [
+            'selectedPosition.required' => 'Please select a position.',
+            'start.required' => 'Please select a start time.',
+            'end.required' => 'Please select an end time.',
+            'end.after' => 'The end time must be after the start time.',
+            'start.before_or_equal' => 'The start time cannot be after the event ends.',
+            'end.before_or_equal' => 'The end time cannot be after the event ends.',
         ]);
+
+        $startTime = Carbon::parse($this->start, 'UTC');
+        $endTime = Carbon::parse($this->end, 'UTC');
+
+        if ($startTime->diffInMinutes($endTime) < 30) {
+            $this->addError(
+                'end',
+                'Your registration must be at least 30 minutes long.'
+            );
+
+            return;
+        }
 
         EventPosition::create([
             'user_id' => $authenticatedUser->id,
             'event_id' => $this->event->id,
             'requested_position' => $validated['selectedPosition'],
-            'start' => $validated['start'],
-            'end' => $validated['end'],
+            'start' => Carbon::parse($validated['start'], 'UTC'),
+            'end' => Carbon::parse($validated['end'], 'UTC'),
             'notes' => $validated['notes'],
-            'requested_position' => $this->selectedPosition,
-            'start' => $this->start,
-            'end' => $this->end,
-            'notes' => $this->notes,
         ]);
 
         $this->submitted = true;

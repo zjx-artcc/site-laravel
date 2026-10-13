@@ -90,6 +90,9 @@ It is recommended to use `composer run dev` instead of `php artisan serve` as it
 composer run dev
 ```
 
+## Selecting an Issue for Work
+An open issue cannot be selected or claimed unless it has the tag "approved by WM." Do not claim an issue for work if someone else has assigned it to themselves. 
+
 ## Making Changes
 
 Please keep changes focused and easy to review.

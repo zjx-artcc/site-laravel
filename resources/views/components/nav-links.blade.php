@@ -20,13 +20,13 @@
     </ul>
 </div>
 
-@hasrole('staff')
+@if(auth()->user()?->hasRole('staff'))
     <div class="">
         <div tabindex="0" role="button" class="m-1 flex items-center gap-2">
             <a href="{{ route('admin.index') }}">Facility Admin</a>
         </div>
     </div>
-@endhasrole
+@endif
 @if(auth()->user())
     <div class="dropdown dropdown-end">
         <div tabindex="0" role="button" class="m-1 flex items-center gap-2">

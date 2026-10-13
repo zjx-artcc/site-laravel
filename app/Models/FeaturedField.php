@@ -15,7 +15,7 @@ class FeaturedField extends Model
 
     public function events()
     {
-        return $this->belongsToMany(Event::class, 'event_featured_fields', 'featured_field_id', 'event_id')
+        return $this->belongsToMany(Event::class, 'event_featured_field', 'featured_field_id', 'event_id')
             ->withTimestamps();
     }
 }

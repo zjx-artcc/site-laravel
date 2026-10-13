@@ -13,8 +13,18 @@
             <input name="name" value="{{ old('name', $position->name) }}" type="text" required placeholder="Eg. Generic Positions by Rating" class="input" />
             <br />
 
-            <label for="positions" class="label">Positions (type and separate each position with a comma)</label>
-            <input name="positions" value="{{ old('positions', implode(', ', $position->positions ?? [])) }}" type="text" required placeholder="Eg. MCO_GND, MCO_TWR" class="input" />
+            @php
+                $presetPositionItems = old('positions') !== null
+                    ? array_values(array_filter(array_map('trim', explode(',', old('positions'))), 'strlen'))
+                    : ($position->positions ?? []);
+            @endphp
+
+            <x-list-editor
+                name="positions"
+                label="Positions"
+                placeholder="Eg. MCO_GND"
+                :items="$presetPositionItems"
+            />
 
             <button class="btn" type="submit">Update Preset</button>
         </form>

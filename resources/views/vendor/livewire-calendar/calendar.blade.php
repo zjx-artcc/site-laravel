@@ -12,7 +12,7 @@
     <div class="w-full overflow-x-auto">
         <div class="w-full min-w-full">
             <!-- Day of Week Headers -->
-            <div class="w-full flex flex-row bg-gray-300">
+            <div class="w-full flex flex-row bg-base-300">
                 @foreach($monthGrid->first() as $day)
                     @include($dayOfWeekView, ['day' => $day])
                 @endforeach
@@ -20,7 +20,7 @@
 
             <!-- Calendar Days -->
             @foreach($monthGrid as $week)
-                <div class="w-full flex flex-row bg-gray-300">
+                <div class="w-full flex flex-row bg-base-300">
                     @foreach($week as $day)
                         @include($dayView, [
                                 'componentId' => $componentId,

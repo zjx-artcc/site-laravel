@@ -37,14 +37,32 @@ fi
 # Make directories writable by the owner/group without opening them globally.
 chmod -R ug+rwX storage bootstrap/cache
 
-# storage:link is idempotent-ish, but can fail if the link already exists.
-# So guard it instead of blindly forcing it.
-if [ ! -L public/storage ]; then
-  if [ -e public/storage ]; then
-    echo "Warning: public/storage exists but is not a symlink. Leaving it untouched." >&2
-  else
+# The public disk is only browser-accessible through this link. Repair a stale
+# or broken symlink, but never delete a real directory that might be a bad
+# volume mount or contain operator-managed data.
+expected_storage_path="$(cd storage/app/public && pwd -P)"
+
+if [ -L public/storage ]; then
+  actual_storage_path=""
+
+  if [ -d public/storage ]; then
+    actual_storage_path="$(cd public/storage && pwd -P)"
+  fi
+
+  if [ "$actual_storage_path" != "$expected_storage_path" ]; then
+    rm public/storage
     php artisan storage:link
   fi
+elif [ -e public/storage ]; then
+  echo "Error: public/storage exists but is not Laravel's public-disk symlink. Remove the conflicting mount or directory before starting." >&2
+  exit 1
+else
+  php artisan storage:link
+fi
+
+if [ ! -L public/storage ] || [ ! -d public/storage ]; then
+  echo "Error: Laravel public-disk symlink was not created successfully." >&2
+  exit 1
 fi
 
 # Do not run migrations here. Migrator container owns that.

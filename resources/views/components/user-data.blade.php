@@ -22,7 +22,7 @@
         <a href='{{ route('users.edit', $user) }}' class='link text-sm sm:absolute sm:top-0 sm:right-0 mb-3 sm:mb-0 inline-block'>Edit User</a>
     @endif
 
-    <img class='border-2 rounded-full w-24 h-24 sm:w-36 sm:h-36 mb-5' src="{{ asset($user->profile_image_route) }}" alt=""/>
+    <img class='border-2 rounded-full w-24 h-24 sm:w-36 sm:h-36 mb-5' src="{{ $user->profile_image_url }}" alt=""/>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1">
         <x-label label='CID' :value="$user->id"/>
@@ -41,9 +41,9 @@
             <x-label label='Home Subdivision' :value='$user->facility'/>
         @endunless
 
-        @hasrole('staff')
+        @if(auth()->user()?->hasRole('staff'))
             <x-label label="Email" :value="$user->email"/>
-        @endhasrole
+        @endif
 
         <div class='sm:col-span-2'>
             <x-label-slot label='Biography'>

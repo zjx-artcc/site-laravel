@@ -33,10 +33,9 @@
                     </div>
 
                     <div>
-                        <label for="description" class="label">Description <span class="text-error">*</span></label>
+                        <label for="description" class="label">Description</label>
                         <textarea id="description"
                                   name="description"
-                                  required
                                   rows="3"
                                   class="textarea textarea-bordered w-full @error('description') textarea-error @enderror">{{ old('description', $category->description) }}</textarea>
                         @error('description')<p class="text-error text-sm mt-1">{{ $message }}</p>@enderror

@@ -1,14 +1,14 @@
 <li class="text-lg mb-2">
-    <div class='card border-2 border-base-300'>
-        <div class='flex flex-row align-middle justify-left'>
-            <img class='w-17 h-17 ml-4 rounded-full place-self-center' src="{{ asset($soloCert->user->profile_image_route) }}" alt="">
+    <div class='flex flex-row items-center gap-4 py-3'>
+        <img class='w-17 h-17 rounded-full shrink-0' src="{{ $soloCert->user->profile_image_url }}" alt="">
 
-            <div class='ml-5 p-4 flex flex-col'>
-                <a class='font-bold' href={{ route('users.show', $soloCert->user->id) }} class='text-xl'>{{ $soloCert->user->name }}</a>
-
-                <h2 class='absolute top-4 right-4 text-lg'>{{ $soloCert->position }}</h2>
-                <h2 class='text-lg'>Expires on {{ $soloCert->expires->format('Y-m-d') }}</h2>
+        <div class='flex flex-col min-w-0 flex-1 gap-1'>
+            <div class='flex items-center justify-between gap-2'>
+                <a class='font-bold text-xl truncate' href={{ route('users.show', $soloCert->user->id) }}>{{ $soloCert->user->name }}</a>
+                <span class='badge badge-lg border-0 shrink-0'>{{ $soloCert->position }}</span>
             </div>
+
+            <h2 class='text-lg'>Expires on {{ $soloCert->expires->format('Y-m-d') }}</h2>
         </div>
     </div>
 </li>

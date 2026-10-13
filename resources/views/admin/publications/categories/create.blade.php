@@ -33,10 +33,9 @@
                     </div>
 
                     <div>
-                        <label for="description" class="label">Description <span class="text-error">*</span></label>
+                        <label for="description" class="label">Description</label>
                         <textarea id="description"
                                   name="description"
-                                  required
                                   rows="3"
                                   placeholder="Short description shown on the public page..."
                                   class="textarea textarea-bordered w-full @error('description') textarea-error @enderror">{{ old('description') }}</textarea>

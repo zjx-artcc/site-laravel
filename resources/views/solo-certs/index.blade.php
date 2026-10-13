@@ -7,6 +7,7 @@
 
     <x-search/>
 
+    <div class="overflow-x-auto">
     <table class="table table-zebra mt-2">
         <thead>
         <tr>
@@ -50,29 +51,43 @@
                     @endif
                 </td>
                 <td>
-                    <ul class='text-accent menu menu-horizontal h-10 items-center gap-x-5 justify-center'>
-                        <li>
-                            <details>
-                                <summary>Actions</summary>
-                                <ul class="bg-base-100 text-base-content rounded-t-none p-2 z-10">
-                                    @if (!$soloCert->expired && !$soloCert->revoked)
-                                        @haspermission('revoke solo certs')
-                                            <li class="w-max">
-                                                <form method="POST" action="{{route('solo-certs.destroy', ['solo_cert' => $soloCert])}}">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="w-full text-left">Revoke Solo Cert</button>
-                                                </form>
-                                            </li>
-                                        @endhaspermission
-                                    @endif
-                                </ul>
-                            </details>
-                        </li>
-                    </ul>
+                    <div x-data="{
+                            open: false,
+                            top: 0,
+                            left: 0,
+                            openMenu() {
+                                const rect = $refs.trigger.getBoundingClientRect();
+                                this.top = rect.bottom + window.scrollY;
+                                this.left = rect.right + window.scrollX - 160;
+                                this.open = true;
+                            },
+                        }">
+                        <div x-ref="trigger" tabindex="0" role="button" class="btn btn-sm" @click="open ? (open = false) : openMenu()">Actions</div>
+
+                        <template x-teleport="body">
+                            <ul x-show="open" x-cloak
+                                @click.outside="open = false"
+                                @click="open = false"
+                                :style="`top: ${top}px; left: ${left}px;`"
+                                class="fixed text-base-content menu bg-base-100 rounded-box z-50 w-40 p-2 shadow-sm border border-base-300">
+                                @if (!$soloCert->expired && !$soloCert->revoked)
+                                    @haspermission('revoke solo certs')
+                                        <li class="w-max">
+                                            <form method="POST" action="{{route('solo-certs.destroy', ['solo_cert' => $soloCert])}}">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="w-full text-left">Revoke Solo Cert</button>
+                                            </form>
+                                        </li>
+                                    @endhaspermission
+                                @endif
+                            </ul>
+                        </template>
+                    </div>
                 </td>
             </tr>
         @endforeach
         </tbody>
     </table>
+    </div>
 @endsection

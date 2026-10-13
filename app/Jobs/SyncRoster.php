@@ -8,14 +8,24 @@ use App\DTOs\VatusaRosterUser;
 use App\Models\Staff;
 use App\Models\User;
 use Http;
-use Illuminate\Contracts\Broadcasting\ShouldBeUnique;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class SyncRoster implements ShouldBeUnique, ShouldQueue
 {
     use Queueable;
+
+    /**
+     * The number of seconds the unique lock is held before it is considered stale.
+     *
+     * Acts as a safety net: if a worker dies mid-sync without releasing the lock,
+     * it auto-expires well before the next scheduled run (every two hours) so the
+     * sync is never permanently blocked.
+     */
+    public int $uniqueFor = 1800;
 
     /**
      * Create a new job instance.
@@ -28,7 +38,7 @@ class SyncRoster implements ShouldBeUnique, ShouldQueue
 
         Log::debug('Fetching roster from VATUSA', ['endpoint' => $ROSTER_API_ENDPOINT]);
 
-        $rosterData = Http::get($ROSTER_API_ENDPOINT, [
+        $rosterData = Http::retry(4, fn ($attempt) => $attempt * 1000)->timeout(20)->get($ROSTER_API_ENDPOINT, [
             'apikey' => config('app.vatusa_api_key'),
         ]);
 
@@ -132,7 +142,7 @@ class SyncRoster implements ShouldBeUnique, ShouldQueue
     private function updateStaffMembers()
     {
         $FACILITY_INFO_ENDPOINT = config('app.vatusa_api_url').'/v2/facility/'.config('app.vatusa_facility');
-        $facilityInfo = Http::get($FACILITY_INFO_ENDPOINT, [
+        $facilityInfo = Http::retry(4, fn ($attempt) => $attempt * 1000)->timeout(20)->get($FACILITY_INFO_ENDPOINT, [
             'apikey' => config('app.vatusa_api_key'),
         ]);
 
@@ -175,6 +185,7 @@ class SyncRoster implements ShouldBeUnique, ShouldQueue
             }
 
             $this->syncRosteredRole();
+            Cache::forget('vatsim-statistics:rostered-cids');
 
             activity()->withProperties(['attributes' => [
                 'rostered_controllers' => User::where('rostered', true)->count(),
@@ -182,7 +193,7 @@ class SyncRoster implements ShouldBeUnique, ShouldQueue
             ]])->log('Roster sync complete');
         } catch (\Exception $e) {
             // Log error
-            Log::error('Error syncing roster: '.$e->getMessage().'\n'.$e->getTraceAsString(), [
+            Log::error('Error syncing roster: '.$e->getMessage()."\n".$e->getTraceAsString(), [
                 'url' => config('app.vatusa_api_url').'/v2/facility/'.config('app.vatusa_facility'),
                 'environment' => App::environment(),
                 'exception' => get_class($e),

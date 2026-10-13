@@ -1,5 +1,5 @@
 @unless(sizeof($trainingAssignments) == 0)
-    <div>
+    <div class='overflow-x-auto'>
     <table class='table table-zebra table-md border-2 border-base-300 mt-5 w-full'>
         <thead>
         <tr>
@@ -53,46 +53,59 @@
                     {{  $trainingAssignment->status->label() }}
                 </td>
                 <td>
-                    <ul class='text-accent menu menu-horizontal h-10 items-center gap-x-5 justify-center'>
-                        <li>
-                            <details>
-                                <summary>Actions</summary>
-                                <ul class="bg-base-100 text-base-content rounded-t-none p-2 z-10 min-w-max">
-                                    @haspermission('claim students')
-                                    @if (is_null($trainingAssignment->instructor))
-                                        <li>
-                                            <form
-                                                action="{{route("training-assignments.claim", ["assignment" => $trainingAssignment->id])}}"
-                                                method="POST"
-                                            >
-                                                @method('PUT')
-                                                @csrf
-                                                <button type="submit">Claim Student</button>
-                                            </form>
-                                        </li>
-                                    @endif
-                                    @endhaspermission
+                    <div x-data="{
+                            open: false,
+                            top: 0,
+                            left: 0,
+                            openMenu() {
+                                const rect = $refs.trigger.getBoundingClientRect();
+                                this.top = rect.bottom + window.scrollY;
+                                this.left = rect.right + window.scrollX - 160;
+                                this.open = true;
+                            },
+                        }">
+                        <div x-ref="trigger" tabindex="0" role="button" class="btn btn-sm" @click="open ? (open = false) : openMenu()">Actions</div>
 
-                                    @if($trainingAssignment->instructor_id == Auth::user()->id)
-                                        <li>
-                                            <form
-                                                action="{{route("training-assignments.drop", ["assignment" => $trainingAssignment->id])}}"
-                                                method="POST"
-                                            >
-                                                @method('PUT')
-                                                @csrf
-                                                <button type="submit">Drop Student</button>
-                                            </form>
-                                        </li>
-                                    @endif
+                        <template x-teleport="body">
+                            <ul x-show="open" x-cloak
+                                @click.outside="open = false"
+                                @click="open = false"
+                                :style="`top: ${top}px; left: ${left}px;`"
+                                class="fixed text-base-content menu bg-base-100 rounded-box z-50 w-40 p-2 shadow-sm border border-base-300 min-w-max">
+                                @haspermission('claim students')
+                                @if (is_null($trainingAssignment->instructor))
+                                    <li>
+                                        <form
+                                            action="{{route("training-assignments.claim", ["assignment" => $trainingAssignment->id])}}"
+                                            method="POST"
+                                        >
+                                            @method('PUT')
+                                            @csrf
+                                            <button type="submit">Claim Student</button>
+                                        </form>
+                                    </li>
+                                @endif
+                                @endhaspermission
 
-                                    @haspermission('manage students')
-                                    <li><a href={{ route('training-assignments.edit', ['assignment' => $trainingAssignment->id]) }}>Edit</a></li>
-                                    @endhaspermission
-                                </ul>
-                            </details>
-                        </li>
-                    </ul>
+                                @if($trainingAssignment->instructor_id == Auth::user()->id)
+                                    <li>
+                                        <form
+                                            action="{{route("training-assignments.drop", ["assignment" => $trainingAssignment->id])}}"
+                                            method="POST"
+                                        >
+                                            @method('PUT')
+                                            @csrf
+                                            <button type="submit">Drop Student</button>
+                                        </form>
+                                    </li>
+                                @endif
+
+                                @haspermission('manage students')
+                                <li><a href={{ route('training-assignments.edit', ['assignment' => $trainingAssignment->id]) }}>Edit</a></li>
+                                @endhaspermission
+                            </ul>
+                        </template>
+                    </div>
                 </td>
             </tr>
         @endforeach

@@ -1,11 +1,16 @@
 <?php
 
 use App\Models\ManualContributor;
+use App\Models\User;
+use Database\Seeders\PermissionSeeder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 beforeEach(function () {
     Cache::flush();
+
+    $this->seed(PermissionSeeder::class);
+    $this->actingAs(User::factory()->create());
 
     Http::fake([
         'api.github.com/repos/*' => Http::response([
@@ -14,6 +19,12 @@ beforeEach(function () {
         ], 200),
         'api.github.com/users/*' => Http::response(['name' => 'A Contributor'], 200),
     ]);
+});
+
+test('guests are redirected to login', function () {
+    auth()->logout();
+
+    $this->get(route('contributors.index'))->assertRedirect(route('login'));
 });
 
 test('manual contributors in other sections are de-duplicated out of main', function () {

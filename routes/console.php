@@ -1,7 +1,10 @@
 <?php
 
+use App\Http\Controllers\StatisticsController;
+use App\Jobs\ArchiveEvents;
+use App\Jobs\ExpireLoas;
 use App\Jobs\SyncRoster;
-use App\Jobs\SyncStatsimSessions;
+use App\Jobs\SyncVatsimSessions;
 use App\Jobs\UpdateOnlineControllers;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Carbon;
@@ -16,9 +19,15 @@ Schedule::job(new SyncRoster)->everyTwoHours();
 
 Schedule::job(new UpdateOnlineControllers)->everyMinute();
 
+Schedule::job(new ExpireLoas)->daily();
+
+Schedule::job(new ArchiveEvents)->everyFiveMinutes();
+
 Schedule::call(function () {
     $now = Carbon::now();
-    SyncStatsimSessions::dispatch($now->year, $now->month);
-    $prev = $now->copy()->subMonthNoOverflow();
-    SyncStatsimSessions::dispatch($prev->year, $prev->month);
-})->dailyAt('04:00');
+
+    SyncVatsimSessions::dispatch(
+        $now->copy()->subDays(StatisticsController::DEFAULT_LOOKBACK_DAYS)->startOfDay()->toIso8601String(),
+        $now->endOfDay()->toIso8601String(),
+    );
+})->everySixHours();

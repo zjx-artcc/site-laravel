@@ -39,6 +39,13 @@ return [
         'client_id' => env('VATSIM_CLIENT_ID'),
         'client_secret' => env('VATSIM_CLIENT_SECRET'),
         'redirect' => env('APP_URL', 'invalid_config').'/auth/callback',
+        'guzzle' => [
+            'timeout' => 15,
+            'connect_timeout' => 5,
+            'curl' => [
+                CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+            ],
+        ],
     ],
 
 ];

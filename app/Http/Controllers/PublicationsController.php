@@ -22,11 +22,26 @@ class PublicationsController extends Controller
 
     public function file(Publication $publication)
     {
+        $disk = Storage::disk(Publication::DISK);
+
         abort_unless(
-            $publication->file_path && Storage::disk('public')->exists($publication->file_path),
+            $publication->file_path && $disk->exists($publication->file_path),
             404
         );
 
-        return Storage::disk('public')->response($publication->file_path, $publication->original_filename);
+        // nosniff stops a browser second-guessing the type we sniffed and running a
+        // mislabelled upload as HTML.
+        $headers = [
+            'Content-Type' => $publication->servedMimeType(),
+            'X-Content-Type-Options' => 'nosniff',
+        ];
+
+        // Anything a browser cannot render (vATIS profile JSON, legacy uploads) is
+        // saved to disk rather than dumped on screen as raw text.
+        if ($publication->opensInBrowser()) {
+            return $disk->response($publication->file_path, $publication->original_filename, $headers);
+        }
+
+        return $disk->download($publication->file_path, $publication->original_filename, $headers);
     }
 }

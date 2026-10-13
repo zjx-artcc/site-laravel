@@ -5,6 +5,7 @@
 @section('body')
     <x-search/>
     
+    <div class='overflow-x-auto'>
     <table class='table table-zebra mt-5'>
         <thead>
             <tr>
@@ -41,6 +42,7 @@
             @endforeach
         </tbody>
     </table>
+    </div>
 
     {{ $visitRequests->links() }}
 @endsection

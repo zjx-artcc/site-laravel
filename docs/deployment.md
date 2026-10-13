@@ -42,7 +42,8 @@ The production image is defined in `Dockerfile`. It is a two-stage build on top 
 ### Stage 2 — production
 
 - Starts fresh from `php:8.4-fpm-alpine` and installs only the runtime bits it needs
-  (`libpq-dev`, `pdo`, `pdo_pgsql`). Node and the build toolchain are left behind.
+  (`libpq-dev`, `pdo`, `pdo_pgsql`, and the `redis` extension via PECL). Node and the
+  build toolchain (and the temporary PECL build deps) are left behind.
 - Copies the fully built `/var/www/html` (vendor + compiled assets) from the build
   stage.
 - Copies `entrypoint.sh` in and marks it executable.
@@ -73,9 +74,20 @@ the Laravel runtime before serving. In order it:
 3. Fixes permissions: if the container runs as root (`id -u` = 0) it `chown`s
    `storage` and `bootstrap/cache` to `www-data`; it always applies `chmod -R ug+rwX`
    to those paths.
-4. Creates the `public/storage` symlink via `php artisan storage:link`, but only if
-   `public/storage` does not already exist. If it exists as a non-symlink it is left
-   untouched with a warning.
+4. Bakes `public/storage` → `storage/app/public` into the application image, then
+   verifies the same link at startup. This makes public-disk assets work even when
+   a deployment platform overrides the image command and skips `entrypoint.sh`. A stale or
+   broken symlink is recreated with `php artisan storage:link`; a real directory at
+   `public/storage` stops startup with an actionable error rather than serving broken
+   asset URLs. Do not mount a volume at `public/storage`; persist or mount
+   `storage/app/public` instead.
+
+   Public assets such as event banners and profile photos are stored on Laravel's `public`
+   disk. Application code must generate their URLs with `Storage::disk('public')->url(...)` instead of
+   manually prefixing stored paths with `storage/`; this keeps those links correct when
+   the disk uses a custom public URL or an asset host. Publications are served by their
+   controller so the application can validate the stored type and apply the appropriate
+   `Content-Disposition` and `X-Content-Type-Options` headers.
 5. Optimizes caches, but **only when `LARAVEL_OPTIMIZE` is `true`** (this is the
    default when the variable is unset). When enabled it runs `optimize:clear`,
    `config:cache`, `route:cache`, and `view:cache`. This step is also gated so it only
@@ -128,25 +140,37 @@ fast, dependency-free test config: `APP_ENV=testing`, `DB_CONNECTION=sqlite`,
   the workflow reports style violations but does not push fixes back. Run
   `vendor/bin/pint` locally before pushing.
 
-### `build-and-push-staging.yml` and `build-and-push-production.yml` — build & deploy
+### `deploy.yml` — test once, build once, staging gates production
 
-Both workflows build the image from `./Dockerfile`, push it to GHCR
-(`ghcr.io/<repository>`) tagged `latest` and an `IMAGE_TAG`, then SSH into the deploy
-host (`appleboy/ssh-action`) and, from the environment's `infrastructure/<env>`
-directory, write an `.env` from the `ENV_FILE` secret and run
-`docker compose pull && docker compose up -d`.
+Triggers on `push` to `main` (plus manual `workflow_dispatch`). One workflow, four
+sequential jobs (`needs:` chained, so a failure anywhere stops the pipeline):
 
-- **Staging:** `deploy` uses the `staging` environment and deploys under
-  `infrastructure/staging`.
-- **Production:** `deploy` uses the `production` environment and deploys under
-  `infrastructure/production`.
+1. **`test`** — calls `ci.yml` as a reusable workflow (build/lint/test).
+2. **`build-staging`** — builds the image from `./Dockerfile` once, and pushes it to
+   GHCR (`ghcr.io/<repository>`) under three tags: `latest`, the `staging` environment's
+   `IMAGE_TAG`, and an immutable `sha-<commit sha>` tag that pins this exact build for
+   the rest of the pipeline. Uses the `staging` environment.
+3. **`deploy-staging`** — SSHes into the deploy host (`appleboy/ssh-action`), writes
+   `infrastructure/staging/.env` from the `staging` environment's `ENV_FILE` secret, and
+   runs `docker compose pull && docker compose up -d`.
+4. **`promote-and-deploy-production`** — a single job that first runs
+   `docker buildx imagetools create` to point the `production` environment's `IMAGE_TAG`
+   (and `latest`) at the same `sha-<commit sha>` digest that was just deployed to
+   staging (no rebuild — production always ships the literal artifact staging
+   validated), then immediately SSHes in and deploys it the same way staging did. Uses
+   the `production` environment.
 
-> **IMPORTANT — both deploy on push to `main`.** Both the staging and the production
-> workflows trigger on `push` to the `main` branch (plus manual `workflow_dispatch`).
-> There is **no separate release gate for production**: merging to `main` deploys to
-> staging *and* production in the same event. The only difference between them is the
-> GitHub Environment used (which is where any required-reviewer / protection rules and
-> per-environment secrets would apply) and the target directory on the host.
+`promote-and-deploy-production` declares `environment: production`, and that environment
+has a required-reviewers protection rule configured in GitHub, so the pipeline pauses
+after staging is live and waits for a single manual approval before it will touch
+production at all. **A push to `main` no longer deploys to production automatically** —
+it always goes through staging first and needs a human to approve the production stage.
+
+Promote and deploy used to be two separate jobs, each with its own `environment:
+production` — but GitHub requests a fresh approval per *pending deployment*, and since
+the jobs ran sequentially (never pending at the same time), that meant two separate
+approval prompts for what is really one decision. They're merged into one job so there's
+exactly one approval for the whole production stage.
 
 ---
 

@@ -6,6 +6,10 @@
         <x-user-data :user="$user"/>
     </x-card-component>
 
+    <x-card-component title='Certifications'>
+        <x-user-certifications :user="$user"/>
+    </x-card-component>
+
     <x-card-component title='Statistics'>
         <div class="grid grid-cols-3 gap-4 border-b border-base-300 pb-4 mb-4 mt-2">
             <div class="text-center">

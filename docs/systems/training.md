@@ -98,7 +98,8 @@ erDiagram
         string position
         int movements
         int score "1-5"
-        mediumText notes
+        longText notes
+        longText instructor_notes "nullable, staff-only"
         int location "0-2"
         boolean vatusa_synced
         string vatusa_id "nullable"
@@ -134,6 +135,12 @@ erDiagram
   sync job sends as the record duration.
 - `vatusa_synced` (bool) and `vatusa_id` (string, nullable) track sync state.
   `vatusa_id` was added later by `2026_06_11_000001_add_vatusa_id_to_training_tickets_table`.
+- `notes` and `instructor_notes` use `longText`, with no application-level maximum
+  length. `instructor_notes` is nullable, captured with a Markdown-enabled editor,
+  staff-only, and is shown
+  on the ticket only to users with the `training` role and is **never** sent to
+  VATUSA — `SyncTrainingTickets` only forwards the student-facing `notes` column.
+  Both note fields are purified when saved and again before rich-text rendering.
 - Uses Laravel Scout `Searchable` (student/instructor name + id, position, date)
   and Spatie `LogsActivity`.
 
@@ -166,7 +173,8 @@ erDiagram
 
 1. Validates `student`, `position` (regex above), `location` (0–2),
    `sessionStart`/`sessionEnd` (`sessionEnd` must be after `sessionStart`),
-   `movements`, `score` (1–5), `notes`.
+   `movements`, `score` (1–5), `notes`, and optional `instructor_notes`
+   (staff-only). The note fields have no application-level maximum length.
 2. Rejects the ticket if the instructor picks themselves as the student.
 3. Creates the `TrainingTicket` with `instructor_id = Auth::user()->id`.
 4. Emails the student (bcc the instructor) via `TrainingTicketCreated`.

@@ -27,7 +27,13 @@ class UpdateOnlineControllers implements ShouldQueue
     {
         $API_ENDPOINT = config('app.vatsim_api_url').'/v2/atc/online';
 
-        $onlineData = Http::get($API_ENDPOINT);
+        try {
+            $onlineData = Http::retry(2, 500)->timeout(20)->get($API_ENDPOINT);
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch VATSIM online controllers: '.$e->getMessage());
+
+            return;
+        }
 
         $controllers = $onlineData->json();
 

@@ -11,6 +11,7 @@
         "axios": "^1.7.4",
         "concurrently": "^9.0.1",
         "laravel-vite-plugin": "^3.1",
+        "leaflet": "^1.9.4",
         "tailwindcss": "^4.0.7",
         "vite": "^8.0.16"
     },
@@ -20,6 +21,8 @@
         "lightningcss-linux-x64-gnu": "^1.29.1"
     },
     "devDependencies": {
+        "@fortawesome/fontawesome-free": "^7.2.0",
+        "@fortawesome/fontawesome-svg-core": "^7.2.0",
         "daisyui": "^5.3.7"
     }
 }

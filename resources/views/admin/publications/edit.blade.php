@@ -37,10 +37,9 @@
                     </div>
 
                     <div>
-                        <label for="description" class="label">Description <span class="text-error">*</span></label>
+                        <label for="description" class="label">Description</label>
                         <textarea id="description"
                                   name="description"
-                                  required
                                   rows="3"
                                   placeholder="Brief description of this document..."
                                   class="textarea textarea-bordered w-full @error('description') textarea-error @enderror">{{ old('description', $document->description) }}</textarea>
@@ -52,10 +51,10 @@
                 </div>
             </div>
 
-            {{-- Category & Version --}}
+            {{-- Category --}}
             <div class="collapse collapse-open bg-base-100 border border-base-300">
                 <input type="checkbox" checked />
-                <div class="collapse-title font-semibold">Category & Version</div>
+                <div class="collapse-title font-semibold">Category</div>
                 <div class="collapse-content flex flex-col gap-4">
 
                     <div>
@@ -73,20 +72,6 @@
                             @endforeach
                         </select>
                         @error('publication_category_id')
-                            <p class="text-error text-sm mt-1">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div>
-                        <label for="version" class="label">Version <span class="text-error">*</span></label>
-                        <input id="version"
-                               name="version"
-                               type="text"
-                               required
-                               placeholder="e.g. v1.0"
-                               value="{{ old('version', $document->version) }}"
-                               class="input input-bordered w-full @error('version') input-error @enderror" />
-                        @error('version')
                             <p class="text-error text-sm mt-1">{{ $message }}</p>
                         @enderror
                     </div>
@@ -130,9 +115,9 @@
                         <input id="file"
                                name="file"
                                type="file"
-                               accept=".pdf,.docx,.png,.jpg,.jpeg"
+                               accept=".pdf,.png,.jpg,.jpeg,.json"
                                class="file-input file-input-bordered w-full @error('file') file-input-error @enderror" />
-                        <p class="text-xs text-base-content/50 mt-1">Leave empty to keep the current file. Accepted: PDF, Word (docx), PNG, JPG. Max 10 MB.</p>
+                        <p class="text-xs text-base-content/50 mt-1">Leave empty to keep the current file. Accepted: PDF, PNG, JPG, JSON. Max 10 MB.</p>
                         @error('file')
                             <p class="text-error text-sm mt-1">{{ $message }}</p>
                         @enderror

@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\SyncStatsimSessions;
+use App\Jobs\SyncVatsimSessions;
 use App\Models\ControllerMonthlyStat;
 use App\Models\ControllerSession;
 use App\Models\User;
@@ -11,31 +11,21 @@ use Illuminate\Support\Carbon;
 
 class StatisticsController extends Controller
 {
+    public const DEFAULT_LOOKBACK_DAYS = 14;
+
     public function sync(Request $request)
     {
         $request->validate([
-            'from_year' => 'required|integer|min:2000|max:2100',
-            'from_month' => 'required|integer|min:1|max:12',
-            'to_year' => 'required|integer|min:2000|max:2100',
-            'to_month' => 'required|integer|min:1|max:12',
+            'from_date' => 'required|date|before_or_equal:to_date',
+            'to_date' => 'required|date',
         ]);
 
-        $from = Carbon::create($request->from_year, $request->from_month, 1)->startOfMonth();
-        $to = Carbon::create($request->to_year, $request->to_month, 1)->startOfMonth();
+        $from = Carbon::parse($request->from_date)->utc()->startOfDay();
+        $to = Carbon::parse($request->to_date)->utc()->endOfDay();
 
-        if ($from->greaterThan($to)) {
-            return back()->withErrors(['from' => 'Start date must be before or equal to end date.']);
-        }
+        SyncVatsimSessions::dispatch($from->toIso8601String(), $to->toIso8601String());
 
-        $count = 0;
-        $cursor = $from->copy();
-        while ($cursor->lessThanOrEqualTo($to)) {
-            SyncStatsimSessions::dispatch($cursor->year, $cursor->month);
-            $cursor->addMonthNoOverflow();
-            $count++;
-        }
-
-        return back()->with('success', "Queued sync for {$count} month(s): {$from->format('M Y')} – {$to->format('M Y')}.");
+        return back()->with('success', "Queued VATSIM Core statistics sync: {$from->toFormattedDateString()} – {$to->toFormattedDateString()}.");
     }
 
     public function index(Request $request)
@@ -142,9 +132,9 @@ class StatisticsController extends Controller
             'SUM(delivery_hours + ground_hours + tower_hours + approach_hours + center_hours) as total'
         )->value('total') ?? 0;
 
-        $earliest = ControllerMonthlyStat::selectRaw('MIN(year * 100 + month) as ym, MIN(year) as y, MIN(month) as m')->first();
-        $allTimeSince = ($earliest && $earliest->y)
-            ? Carbon::create($earliest->y, $earliest->m, 1)->format('M Y')
+        $earliestYearMonth = (int) ControllerMonthlyStat::selectRaw('MIN(year * 100 + month) as ym')->value('ym');
+        $allTimeSince = $earliestYearMonth > 0
+            ? Carbon::create(intdiv($earliestYearMonth, 100), $earliestYearMonth % 100, 1)->format('M Y')
             : null;
 
         return view('statistics.index', [

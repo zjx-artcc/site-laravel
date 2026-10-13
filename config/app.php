@@ -129,7 +129,8 @@ return [
     'vatsim_client_secret' => env('VATSIM_CLIENT_SECRET'),
     'vatsim_auth_url' => env('VATSIM_AUTH_URL'),
     'vatusa_facility' => env('VATUSA_FACILITY'),
-    'vatsim_api_url' => env('VATSIM_API_URL'),
-    'statsim_api_key' => env('STATSIM_API_KEY'),
+    'vatsim_api_url' => env('VATSIM_API_URL', 'https://api.vatsim.net'),
+    'vatsim_statistics_page_size' => (int) env('VATSIM_STATISTICS_PAGE_SIZE', 25),
     'training_request_webhook_url' => env('TRAINING_REQUEST_WEBHOOK_URL'),
+    'feedback_webhook_url' => env('FEEDBACK_WEBHOOK'),
 ];

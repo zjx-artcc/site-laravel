@@ -1,5 +1,6 @@
 <?php
 
+use App\Logging\RedactSecrets;
 use MarvinLabs\DiscordLogger\Logger;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
@@ -55,9 +56,10 @@ return [
         'discord' => [
             'driver' => 'custom',
             'via' => Logger::class,
-            'level' => 'debug',
+            'level' => env('LOG_LEVEL', 'debug'),
             'url' => env('LOG_DISCORD_WEBHOOK_URL'),
-            'ignore_exceptions' => env('LOG_DISCORD_IGNORE_EXCEPTIONS', false),
+            'ignore_exceptions' => env('LOG_DISCORD_IGNORE_EXCEPTIONS', true),
+            'tap' => [RedactSecrets::class],
         ],
         'stack' => [
             'driver' => 'stack',

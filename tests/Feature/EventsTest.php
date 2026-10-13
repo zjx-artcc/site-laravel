@@ -45,6 +45,77 @@ test('updating an event persists the new title', function () {
     expect($event->fresh()->title)->toBe('Updated Title');
 });
 
+test('a script tag in the description is stripped on create', function () {
+    $this->actingAs(makeEventManager());
+
+    $response = $this->post(route('admin.events.store'), [
+        'title' => 'XSS Test Event',
+        'description' => '<p>Hello</p><script>alert(1)</script><img src=x onerror=alert(2)>',
+        'start' => now()->addDay()->toDateTimeString(),
+        'end' => now()->addDay()->addHours(2)->toDateTimeString(),
+        'type' => EventType::HOME->value,
+    ]);
+
+    $response->assertRedirect(route('admin.events.index'));
+
+    $event = Event::where('title', 'XSS Test Event')->firstOrFail();
+
+    expect($event->description)
+        ->toContain('Hello')
+        ->not->toContain('<script')
+        ->not->toContain('onerror');
+});
+
+test('a script tag in the description is stripped on update', function () {
+    $this->actingAs(makeEventManager());
+
+    $event = Event::create([
+        'title' => 'Original Title',
+        'description' => 'Original description',
+        'start' => now()->addDay(),
+        'end' => now()->addDay()->addHours(2),
+        'type' => EventType::HOME,
+        'featured_fields' => [],
+        'hidden' => false,
+    ]);
+
+    $this->put(route('admin.events.update', ['event' => $event->id]), [
+        'title' => $event->title,
+        'description' => '<script>alert(document.cookie)</script><p>Safe text</p>',
+        'start' => now()->addDay()->toDateTimeString(),
+        'end' => now()->addDay()->addHours(2)->toDateTimeString(),
+        'type' => EventType::HOME->value,
+    ]);
+
+    expect($event->fresh()->description)
+        ->toContain('Safe text')
+        ->not->toContain('<script');
+});
+
+test('the public event page never renders an unsanitized script tag even with legacy raw HTML', function () {
+    // Simulates data that bypassed the controller (e.g. seeded/imported directly),
+    // so the display-side purification in events/show.blade.php is what's under test.
+    $event = Event::create([
+        'title' => 'Legacy Data Event',
+        'description' => '<script>alert(1)</script><p>Legit content</p>',
+        'start' => now()->addDay(),
+        'end' => now()->addDay()->addHours(2),
+        'type' => EventType::HOME,
+        'featured_fields' => [],
+        'hidden' => false,
+    ]);
+
+    $this->get(route('events.show', ['event' => $event->id]))
+        ->assertOk()
+        ->assertSee('Legit content')
+        ->assertDontSee('<script>alert(1)</script>', false);
+});
+
+test('a non-numeric public event URL returns 404', function () {
+    $this->get('/events/cmmu2pltw0037qq7t2jiy3bk')
+        ->assertNotFound();
+});
+
 test('admin events list renders event titles', function () {
     $this->actingAs(makeEventManager());
 

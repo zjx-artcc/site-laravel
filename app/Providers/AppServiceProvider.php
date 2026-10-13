@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Services\Socialite\VatsimProvider;
+use GuzzleHttp\Client;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
@@ -13,7 +15,17 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Bounded Guzzle client used by the Discord log channel (marvinlabs/laravel-discord-logger)
+        // so a slow/unreachable Discord webhook can't hang or re-throw out of a Log:: call.
+        $this->app->singleton(Client::class, function () {
+            return new Client([
+                'timeout' => 5,
+                'connect_timeout' => 3,
+                'curl' => [
+                    CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+                ],
+            ]);
+        });
     }
 
     /**
@@ -37,5 +49,13 @@ class AppServiceProvider extends ServiceProvider
 
             return $socialite->buildProvider(VatsimProvider::class, $config);
         });
+
+        // Force IPv4 for every outbound Http:: facade call (VATUSA/VATSIM/GitHub) —
+        // rules out flaky/blackholed IPv6 routing as a source of intermittent connect timeouts.
+        Http::globalOptions([
+            'curl' => [
+                CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+            ],
+        ]);
     }
 }

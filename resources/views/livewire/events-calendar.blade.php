@@ -44,7 +44,7 @@
                                 {{ $inMonth ? 'bg-base-100' : 'bg-base-200/40' }}
                                 {{ $isToday ? 'ring-2 ring-primary/40 ring-inset' : '' }}">
                         {{-- Day number --}}
-                        <div class="text-xs font-medium {{ $inMonth ? 'text-base-content' : 'text-base-content/30' }} {{ $isToday ? 'text-primary font-bold' : '' }}">
+                        <div class="text-xs font-medium {{ $inMonth ? 'text-base-content' : 'text-base-content/30' }} {{ $isToday ? 'text-base-content font-bold' : '' }}">
                             {{ $day->format('j') }}
                         </div>
 
@@ -52,7 +52,7 @@
                         <div class="mt-0.5 space-y-0.5 overflow-y-auto max-h-[4rem] lg:max-h-[5rem]">
                             @foreach($dayEvents as $event)
                                 <a href="{{ route('events.show', $event->id) }}"
-                                   class="block text-xs leading-tight px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition truncate">
+                                   class="block text-xs leading-tight px-1.5 py-0.5 rounded bg-primary/10 text-base-content hover:bg-primary/20 transition truncate">
                                     {{ $event->title }}
                                 </a>
                             @endforeach
@@ -82,7 +82,7 @@
         @forelse($daysWithEvents as $item)
             <div class="card card-compact bg-base-100 border border-base-200">
                 <div class="card-body p-3">
-                    <h3 class="text-sm font-semibold {{ $item['day']->isToday() ? 'text-primary' : 'text-base-content' }}">
+                    <h3 class="text-sm font-semibold {{ $item['day']->isToday() ? 'text-base-content' : 'text-base-content' }}">
                         {{ $item['day']->format('l, M j') }}
                         @if($item['day']->isToday())
                             <span class="badge badge-primary badge-xs ml-1">Today</span>
@@ -94,13 +94,18 @@
                                class="flex items-start gap-2 p-2 rounded-lg bg-base-200/50 hover:bg-base-200 transition active:scale-[0.98]">
                                 <div class="w-1 self-stretch rounded-full bg-primary shrink-0"></div>
                                 <div class="min-w-0 flex-1">
-                                    <p class="text-sm font-medium truncate">{{ $event->title }}</p>
+                                    <p class="text-sm font-medium truncate">
+                                        {{ $event->title }}
+                                        @if($event->isStartingSoon())
+                                            <span class="badge badge-primary badge-xs ml-1">Starting Soon</span>
+                                        @endif
+                                    </p>
                                     <p class="text-xs text-base-content/60">
                                         {{ $event->start->format('g:i A') }}
                                         @if($event->end) – {{ $event->end->format('g:i A') }} @endif
                                     </p>
                                     @if($event->description)
-                                        <p class="text-xs text-base-content/50 line-clamp-2 mt-0.5">{{ $event->description }}</p>
+                                        <p class="text-xs text-base-content/50 line-clamp-2 mt-0.5">{{ strip_tags($event->description) }}</p>
                                     @endif
                                 </div>
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-base-content/30 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>

@@ -7,17 +7,25 @@ services:
       - ..:/workspaces/zjx-laravel:cached,z
     command: sleep infinity
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   db:
     image: postgres:18
     restart: unless-stopped
     environment:
-      POSTGRES_DB: laravel
-      POSTGRES_USER: laravel
-      POSTGRES_PASSWORD: laravel
+      POSTGRES_DB: zjx_website
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # Postgres 18+ expects the mount at /var/lib/postgresql (data lives in a
+      # version-specific subdirectory); mounting /var/lib/postgresql/data errors on boot.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d zjx_website"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 volumes:
   pgdata:

@@ -1,10 +1,21 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}"
+    x-data="{ theme: localStorage.getItem('theme') }"
+    x-init="$watch('theme', value => value ? localStorage.setItem('theme', value) : localStorage.removeItem('theme'))"
+    :data-theme="theme">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
         <title>@yield('title') - ZJX ARTCC</title>
+
+        {{-- Applied before first paint so a saved preference doesn't flash the system-default theme first --}}
+        <script>
+            (function () {
+                var theme = localStorage.getItem('theme');
+                if (theme) document.documentElement.setAttribute('data-theme', theme);
+            })();
+        </script>
 
         <link rel="icon" href="/favicon.ico" sizes="any">
         <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -23,51 +34,63 @@
             @vite(['resources/css/app.css', 'resources/js/app.js'])
         @endif
     </head>
-    <body class='flex flex-col min-h-screen w-full overflow-x-hidden font-sans' data-theme='light'>
+    <body class='flex flex-col min-h-screen w-full overflow-x-hidden font-sans'>
         <x-navbar/>
 
         @yield('secondary-navbar')
 
-        @if ($errors->any())
-            <div class="alert alert-danger">
-                <ul>
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-            </div>
-        @endif
-
-        @if(session('error'))
-            <div x-data="{open: true}" x-show='open' class="alert alert-error alert-dismissible fade show" role="alert">
-                {{ session('error') }}
-                <button type="button" class='btn btn-ghost cursor-pointer' x-on:click='open = false'>Close</button>
-            </div>
-        @endif
-
-        @if(session('success'))
-            <div x-data="{open: true}" x-show='open' class="alert alert-success alert-dismissible fade show" role="alert">
-                {{ session('success') }}
-                <button type="button" class='btn btn-ghost cursor-pointer' x-on:click='open = false'>Close</button>
-            </div>
-        @endif
+        <div
+            x-data="{
+                alerts: [
+                    @if ($errors->any())
+                        { id: 'validation', type: 'error', message: @js(implode(' ', $errors->all())) },
+                    @endif
+                    @if (session('error'))
+                        { id: 'session-error', type: 'error', message: @js(session('error')) },
+                    @endif
+                    @if (session('success'))
+                        { id: 'session-success', type: 'success', message: @js(session('success')) },
+                    @endif
+                ]
+            }"
+            x-on:notify.window="alerts.push({ id: Date.now() + '-' + Math.random(), type: $event.detail.type ?? 'info', message: $event.detail.message })"
+            class="flex flex-col gap-2 px-2 sm:px-0"
+        >
+            <template x-for="alert in alerts" :key="alert.id">
+                <div
+                    role="alert"
+                    class="alert"
+                    :class="{
+                        'alert-error': alert.type === 'error',
+                        'alert-success': alert.type === 'success',
+                        'alert-warning': alert.type === 'warning',
+                        'alert-info': alert.type === 'info',
+                    }"
+                >
+                    <span x-text="alert.message"></span>
+                    <button type="button" class="btn btn-ghost btn-sm" @click="alerts = alerts.filter(a => a.id !== alert.id)">Close</button>
+                </div>
+            </template>
+        </div>
 
         @yield('body-nopad')
 
-        <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1 ml-5 mt-5">
-            <h1 class='font-bold text-2xl'>@yield('title')</h1>
-            @hasSection('title-extra')
-                @yield('title-extra')
-            @endif
-        </div>
+        @unless($__env->hasSection('hide-heading'))
+            <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1 ml-5 mt-5">
+                <h1 class='font-bold text-2xl'>@yield('title')</h1>
+                @hasSection('title-extra')
+                    @yield('title-extra')
+                @endif
+            </div>
+        @endunless
 
         <div class="p-5 flex-1">
             @yield('body')
         </div>
 
         <div class="footer gap-y-0 p-0">
-            @env('development')
-                <div class="footer-center w-full p-2 bg-warning">
+            @env('development', 'staging')
+                <div class="footer-center w-full p-2 bg-warning text-warning-content">
                     <h1>DEVELOPMENT BUILD - THE FUNCTIONS OF THIS SITE ARE NOT INDICATIVE OF THE PRODUCTION WEBSITE AND MAY BE CHANGED AT ANY TIME. SENSITIVE DATA IS ENTERED AT YOUR OWN RISK.</h1>
                     @auth
                         <h1 class="mt-5">AUTHENTICATED USER: <strong>{{Auth::user()->id}} - {{Auth::user()->name}}</strong></h1>
@@ -91,8 +114,8 @@
             <footer class="w-full bg-primary text-primary-content p-2">
                 <h1 class="text-xl font-bold">Virtual Jacksonville ARTCC</h1>
 
-                <div class="flex gap-x-10">
-                    <a class="link text-lg" href="https://github.com/zjx-artcc" target="_blank">Join vZJX</a>
+                <div class="flex flex-wrap gap-x-6 sm:gap-x-10 gap-y-1">
+                    <a class="link text-lg" href="{{ route('faq.index') }}">FAQ &amp; Help</a>
                     <a class="link text-lg" href="https://github.com/zjx-artcc" target="_blank">GitHub</a>
                     <a class="link text-lg" href="https://vatusa.net" target="_blank">VATUSA</a>
                     <a class="link text-lg" href="https://vatsim.net" target="_blank">VATSIM</a>

@@ -12,7 +12,7 @@ An **event** is a scheduled VATSIM activity (for example a Friday Night Operatio
 
 ## Key concepts
 
-- **Event** (`app/Models/Event.php`) — the core record. Carries a name, description, `start`/`end` timestamps, a `type`, an optional `image_url`, an array of `featured_fields`, and an array of `presetPositions` (the positions copied from a preset at creation time).
+- **Event** (`app/Models/Event.php`) — the core record. Carries a name, description, `start`/`end` timestamps, a `type`, an optional banner, an array of `featured_fields`, and an array of `presetPositions` (the positions copied from a preset at creation time). New banners are stored on Laravel's `public` disk under `event/`; the model also supports legacy `events/` paths. It derives the browser URL through that disk, so deployments can use the configured `public/storage` link or a public asset host.
 - **Event type** (`app/Enums/EventType.php`) — a string-backed enum cast on the `type` column. Cases:
   - `HOME`
   - `SUPPORT_REQUIRED`
@@ -118,7 +118,7 @@ The `assigned_position` and `position_status` columns exist to let staff assign 
 
 ## Permissions & middleware
 
-- **Public routes** (no auth): `GET /events` (`events.index`) and `GET /events/{event}` (`events.show`).
+- **Public routes** (no auth): `GET /events` (`events.index`) and `GET /events/{event}` (`events.show`). The event route accepts only the numeric primary key used by the `events` table, so malformed external IDs resolve to a normal 404 rather than reaching PostgreSQL.
 - **Registration**: `POST /events/{event}/request-position` (`events.request-position.store`) requires `auth`.
 - **Admin / management**: all event management lives under the `admin` prefix, which requires `permission:view dashboard`. The Events department group additionally requires `permission:manage events` and contains:
   - `event-fields` resource → `admin.events.event-fields.*`

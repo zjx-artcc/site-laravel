@@ -5,7 +5,7 @@
 @section('body')
     <x-card-component title="Manage Statistics Prefixes">
 
-        <div class="grid grid-cols-10">
+        <div class="grid grid-cols-2 sm:grid-cols-5 lg:grid-cols-10">
             @foreach($prefixes as $prefix)
                 <div class="p-1 px-2 flex flex-row justify-between items-center border-1 border-gray-300">
                     <h2 class='text-md'>{{ $prefix->name }}</h2>

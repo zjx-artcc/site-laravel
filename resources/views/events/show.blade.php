@@ -1,6 +1,14 @@
 @extends('layouts.main')
 
+@section('title', $event->hidden ? 'Event Not Public' : $event->title)
+
 @section('body')
+    @if($event->hidden)
+        <div class="flex items-center justify-center">
+            <h1>Event Not Public</h1>
+        </div>
+    @else
+
     <div class="flex flex-col items-center gap-4 sm:gap-6 px-2 sm:px-0">
         {{-- Back button (mobile) --}}
         <div class="w-full max-w-xl sm:hidden">
@@ -11,15 +19,18 @@
         </div>
 
         <div class="card card-dash bg-base-100 w-full max-w-xl shadow-sm">
-            @if ($event->image_url)
-            <figure>
-                <img src="{{ $event->image_url }}" alt="{{ $event->title }}" class="w-full object-cover max-h-56 sm:max-h-72" />
-            </figure>
+            @if ($event->banner_url)
+              <figure>
+                <img src="{{ $event->banner_url }}" alt="{{ $event->title }}" class="w-full object-cover max-h-56 sm:max-h-72" />
+              </figure>
             @endif
             <div class="card-body bg-neutral p-4 sm:p-6">
                 <div class="flex flex-wrap items-start gap-2">
                     <h1 class="card-title text-lg sm:text-xl leading-snug">{{ $event->title }}</h1>
                     <div class="badge badge-secondary badge-sm sm:badge-md">{{ $event->type }}</div>
+                    @if($event->isStartingSoon())
+                        <div class="badge badge-primary badge-sm sm:badge-md">Starting Soon</div>
+                    @endif
                 </div>
 
                 <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 text-sm text-base-content/70 mt-1">
@@ -41,15 +52,59 @@
 
                 @if($event->description)
                     <div class="divider my-1"></div>
-                    <p class="text-sm leading-relaxed">{{ $event->description }}</p>
+                    <div class="text-sm leading-relaxed">{!! \Stevebauman\Purify\Facades\Purify::clean($event->description) !!}</div>
+                @endif
+            </div>
+        </div>
+
+        <div class="card bg-base-100 w-full max-w-xl shadow-sm">
+            <div class="card-body bg-neutral">
+                <h2 class="card-title">Staffing</h2>
+
+                @if (! $event->published)
+                    <p class="text-sm opacity-70">Positions not yet published.</p>
+                @elseif ($roster->isEmpty())
+                    <p class="text-sm opacity-70">No positions have been set up for this event.</p>
+                @else
+                    <ul class="divide-y divide-base-300">
+                        @foreach ($roster as $row)
+                            <li class="py-2 flex items-center justify-between gap-3">
+                                <span class="font-mono">{{ $row['position'] }}</span>
+
+                                @if ($row['assignees']->isNotEmpty())
+                                    @auth
+                                        <div class="text-sm text-right">
+                                            @foreach ($row['assignees'] as $assignee)
+                                                <div>
+                                                    {{ $assignee['user'] ? "{$assignee['user']->first_name} {$assignee['user']->last_name}" : 'Unknown' }}
+                                                    @if ($assignee['start'] && $assignee['end'] && ($assignee['start']->ne($event->start) || $assignee['end']->ne($event->end)))
+                                                        <span class="text-xs opacity-70">
+                                                            ({{ $assignee['start']->format('H:i') }}&ndash;{{ $assignee['end']->format('H:i') }}Z)
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <span class="badge badge-success badge-sm">Assigned</span>
+                                    @endauth
+                                @else
+                                    <span class="badge badge-ghost badge-sm">Open</span>
+                                @endif
+                            </li>
+                        @endforeach
+                    </ul>
                 @endif
             </div>
         </div>
 
         @auth
-        <div class="card bg-base-100 w-full max-w-xl shadow-sm">
-            @livewire('event-registration', ['event' => $event])
-        </div>
+            @if(!$event->positions_locked)
+                <div class="card bg-base-100 w-full max-w-xl shadow-sm">
+                    @livewire('event-registration', ['event' => $event])
+                </div>
+            @endif
         @endauth
     </div>
+    @endif
 @endsection

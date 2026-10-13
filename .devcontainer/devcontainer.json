@@ -5,9 +5,19 @@
   "workspaceFolder": "/workspaces/zjx-laravel",
   "remoteUser": "vscode",
   "updateRemoteUserUID": true,
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "22"
+    }
+  },
   "forwardPorts": [8000, 5173, 5432],
+  "portsAttributes": {
+    "8000": { "label": "Laravel app" },
+    "5173": { "label": "Vite dev server" },
+    "5432": { "label": "PostgreSQL" }
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
   "shutdownAction": "stopCompose",
-  "postCreateCommand": "composer install && npm install",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -16,6 +26,9 @@
         "esbenp.prettier-vscode",
         "Vue.volar"
       ]
+    },
+    "jetbrains": {
+      "backend": "PhpStorm"
     }
   }
 }

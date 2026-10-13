@@ -60,8 +60,11 @@ class VatsimProvider extends AbstractProvider
             'last_name' => $user['personal']['name_last'],
             'email' => $user['personal']['email'],
             'rating' => $user['vatsim']['rating']['id'],
-            'division' => $user['vatsim']['division']['id'],
-            'facility' => $user['vatsim']['subdivision']['id'],
+            'division' => $user['vatsim']['division']['id'] ?? null,
+            // VATUSA controllers often have a null VATSIM subdivision; guard the access.
+            // Note: `facility` is not persisted at login (see VatsimOauthController) — the
+            // VATUSA roster sync owns it.
+            'facility' => $user['vatsim']['subdivision']['id'] ?? null,
         ]);
 
         return $newUser;

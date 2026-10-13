@@ -9,7 +9,7 @@ The web application for the virtual Jacksonville ARTCC (vZJX) on the VATSIM netw
 - **PostgreSQL** in development and production (see [Testing](#testing) for the CI caveat)
 - **Pest 4** for tests
 - Authentication via **VATSIM Connect OAuth** (no local passwords); authorization via **spatie/laravel-permission**
-- Background work on Laravel's **database** queue; roster/online-controller data synced on a schedule
+- Background work on Laravel's **database** queue; roster, live-controller, and historical-statistics data synced on a schedule
 
 ## Architecture at a glance
 

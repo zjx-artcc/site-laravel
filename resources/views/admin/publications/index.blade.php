@@ -45,7 +45,6 @@
                                     <thead>
                                         <tr>
                                             <th>Name</th>
-                                            <th>Version</th>
                                             <th>Updated At (UTC)</th>
                                             <th>Description</th>
                                             <th>Actions</th>
@@ -55,9 +54,6 @@
                                         @foreach($category->publications as $doc)
                                             <tr>
                                                 <td class="border-r border-base-300 font-medium">{{ $doc->name }}</td>
-                                                <td class="border-r border-base-300">
-                                                    <span class="badge badge-outline badge-sm">{{ $doc->version }}</span>
-                                                </td>
                                                 <td class="border-r border-base-300 text-sm text-base-content/60">
                                                     {{ $doc->updated_at->utc()->format('D, d M Y') }}<br>
                                                     <span class="text-xs">{{ $doc->updated_at->utc()->format('H:i:s') }} GMT</span>

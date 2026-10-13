@@ -4,7 +4,7 @@
     ondragleave="onLivewireCalendarEventDragLeave(event, '{{ $componentId }}', '{{ $day }}', '{{ $dragAndDropClasses }}');"
     ondragover="onLivewireCalendarEventDragOver(event);"
     ondrop="onLivewireCalendarEventDrop(event, '{{ $componentId }}', '{{ $day }}', {{ $day->year }}, {{ $day->month }}, {{ $day->day }}, '{{ $dragAndDropClasses }}');"
-    class="flex-1 min-h-24 sm:min-h-32 md:min-h-40 lg:min-h-48 bg-white border border-gray-300 -mt-px -ml-px">
+    class="flex-1 min-h-24 sm:min-h-32 md:min-h-40 lg:min-h-48 bg-base-100 border border-base-300 -mt-px -ml-px">
 
     {{-- Wrapper for Drag and Drop --}}
     <div
@@ -15,14 +15,14 @@
             @if($dayClickEnabled)
                 wire:click="onDayClick({{ $day->year }}, {{ $day->month }}, {{ $day->day }})"
             @endif
-            class="w-full h-full p-2 lg:p-1 {{ $dayInMonth ? $isToday ? 'bg-yellow-100' : ' bg-white ' : 'bg-gray-100' }} flex flex-col">
+            class="w-full h-full p-2 lg:p-1 {{ $dayInMonth ? $isToday ? 'bg-warning/20' : ' bg-base-100 ' : 'bg-base-200' }} flex flex-col">
 
             {{-- Number of Day --}}
             <div class="flex items-center gap-2">
                 <p class="text-xs sm:text-sm {{ $dayInMonth ? ' font-medium ' : '' }}">
                     {{ $day->format('j') }}
                 </p>
-                <p class="text-[10px] sm:text-xs text-gray-600">
+                <p class="text-[10px] sm:text-xs text-base-content/60">
                     @if($events->isNotEmpty())
                         {{ $events->count() }} {{ Str::plural('event', $events->count()) }}
                     @endif

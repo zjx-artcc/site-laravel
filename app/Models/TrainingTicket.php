@@ -23,10 +23,12 @@ class TrainingTicket extends Model
         'movements',
         'score',
         'notes',
+        'instructor_notes',
         'location',
         'vatusa_id',
         'vatusa_synced',
         'position',
+        'issued_certification_level_id',
         'session_start',
         'session_end',
     ];
@@ -39,6 +41,33 @@ class TrainingTicket extends Model
     public function instructor()
     {
         return $this->belongsTo('App\Models\User', 'instructor_id');
+    }
+
+    public function issuedCertificationLevel()
+    {
+        return $this->belongsTo(CertificationLevel::class, 'issued_certification_level_id');
+    }
+
+    /**
+     * A human-readable label for the certification issued alongside this ticket,
+     * e.g. "Certification Issued: ZJX Ground (GND)", or null if none was issued.
+     * Reused by both the VATUSA sync payload and the notification email so the
+     * wording stays in one place.
+     */
+    public function certificationIssuedLabel(): ?string
+    {
+        $level = $this->issuedCertificationLevel;
+
+        if (! $level) {
+            return null;
+        }
+
+        $facility = $level->facility;
+
+        return 'Certification Issued: '
+            .($facility ? $facility->identifier.' ' : '')
+            .$level->name
+            .' ('.$level->abbreviation.')';
     }
 
     public function duration(): Attribute
@@ -61,7 +90,7 @@ class TrainingTicket extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['user_id', 'instructor_id', 'duration', 'movements', 'score', 'notes', 'location']);
+            ->logOnly(['user_id', 'instructor_id', 'duration', 'movements', 'score', 'notes', 'instructor_notes', 'location']);
     }
 
     public function toSearchableArray(): array

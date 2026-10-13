@@ -102,7 +102,7 @@ class AdminPublicationCategoriesController extends Controller
     {
         return $request->validate([
             'title' => ['required', 'string', 'max:255'],
-            'description' => ['required', 'string'],
+            'description' => ['nullable', 'string'],
             'display_order' => ['required', 'integer', 'min:0'],
         ]);
     }

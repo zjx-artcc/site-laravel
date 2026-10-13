@@ -47,6 +47,10 @@ class SyncTrainingTickets implements ShouldQueue
     {
         $API_URL = config('app.vatusa_api_url').'/v2/user/'.$ticket->user_id.'/training/record';
 
+        // Append the "Certification Issued: …" line to the record notes sent to VATUSA.
+        $certificationLabel = $ticket->certificationIssuedLabel();
+        $notes = $ticket->notes.($certificationLabel ? "\n\n".$certificationLabel : '');
+
         try {
             $request = Http::post($API_URL, [
                 'apikey' => config('app.vatusa_api_key'),
@@ -56,7 +60,7 @@ class SyncTrainingTickets implements ShouldQueue
                 'position' => $ticket->position,
                 'movements' => $ticket->movements,
                 'score' => $ticket->score,
-                'notes' => $ticket->notes,
+                'notes' => $notes,
                 'location' => $ticket->location,
             ]);
         } catch (Exception $e) {

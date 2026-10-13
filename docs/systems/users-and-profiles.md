@@ -117,7 +117,10 @@ returned.
 (nullable string, exactly 2 chars), `image` (optional image ≤ 2 MB), and
 `biography` (optional, ≤ 1000 chars). Ownership/`manage users` is re-checked.
 An uploaded image is stored on the `public` disk as `profile/profile_{id}.{ext}`
-and recorded in `profile_image_route`. Operating initials can only be changed by
+and recorded as that disk-relative path in `profile_image_route`. Its public URL is
+generated with `Storage::disk('public')->url(...)`; older `storage/profile/...`
+records remain supported. The upload accepts JPEG, PNG, and GIF (not SVG, because
+these files are served publicly). Operating initials can only be changed by
 a user with `manage users`, and the controller rejects the change (redirect back
 with an `error`) if the initials are already assigned to another user.
 

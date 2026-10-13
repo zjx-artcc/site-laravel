@@ -144,8 +144,7 @@
                 id="notes"
                 class="textarea"
                 value="{{ old('notes', $trainingTicket->notes) }}"
-                minlength="20"
-                maxlength="2048">{{ old('notes', $trainingTicket->notes) }}
+                minlength="20">{{ old('notes', $trainingTicket->notes) }}
             </textarea>
 
             <div class="card-actions mt-5">

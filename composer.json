@@ -9,7 +9,7 @@
     ],
     "license": "GPL-3.0-or-later",
     "require": {
-        "php": "^8.2",
+        "php": "^8.2|^8.4",
         "asantibanez/livewire-calendar": "^2.3",
         "doctrine/dbal": "*",
         "laravel/framework": "^12.0",
@@ -21,10 +21,11 @@
         "nyholm/psr7": "^1.8",
         "spatie/laravel-activitylog": "^4.10",
         "spatie/laravel-permission": "^6.22",
+        "stevebauman/purify": "^6.3",
         "symfony/mailer": "^7.4"
     },
     "require-dev": {
-        "barryvdh/laravel-ide-helper": "^3.6",
+        "barryvdh/laravel-ide-helper": "^3.7",
         "fakerphp/faker": "^1.23",
         "laravel/pail": "^1.2.2",
         "laravel/pint": "^1.18",
@@ -57,10 +58,12 @@
             "npm run build"
         ],
         "dev": [
+            "@php artisan view:clear --ansi",
             "Composer\\Config::disableProcessTimeout",
             "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"php artisan pail --timeout=0\" \"npm run dev\" --names=server,queue,logs,vite --kill-others"
         ],
         "dev:ssr": [
+            "@php artisan view:clear --ansi",
             "npm run build:ssr",
             "Composer\\Config::disableProcessTimeout",
             "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"php artisan pail --timeout=0\" \"php artisan inertia:start-ssr\" --names=server,queue,logs,ssr --kill-others"

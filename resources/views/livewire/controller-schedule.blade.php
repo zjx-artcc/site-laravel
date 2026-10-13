@@ -43,7 +43,7 @@
                         @error('editPosition') <span class="text-error text-sm">{{ $message }}</span> @enderror
                     </label>
 
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <label class="flex flex-col">
                             <span class="label-text font-semibold mb-1">Start (zulu)</span>
                             <input type="datetime-local" wire:model="editStart" class="input input-bordered w-full">

@@ -2,18 +2,23 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\FeedbackStatus;
+use App\Enums\LoaStatus;
 use App\Models\ControllerMonthlyStat;
 use App\Models\ControllerSession;
+use App\Models\Feedback;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class UserController extends Controller
 {
     public function show(int $id)
     {
-        $user = User::findOrFail($id);
+        $user = User::with('certifications.certificationLevel.facility')->findOrFail($id);
+
         $now = Carbon::now();
 
         $allStats = ControllerMonthlyStat::where('user_id', $id)->get();
@@ -57,10 +62,13 @@ class UserController extends Controller
     {
         $validated = $request->validate([
             'operatingInitials' => 'string|nullable|size:2', // can only be edited if admin
-            'image' => 'file|image|mimes:jpeg,png,jpg,gif,svg|max:2048|nullable',
+            'image' => 'file|image|mimes:jpeg,png,jpg,gif|max:2048|nullable',
             'biography' => 'string|nullable|max:1000',
         ], [
             'operatingInitials.max' => 'Operating initials must be 2 characters long',
+            'image.image' => 'The profile picture must be an image file.',
+            'image.mimes' => 'The profile picture must be a JPEG, PNG, or GIF file.',
+            'image.max' => 'The profile picture must be smaller than 2MB.',
         ]);
 
         if (Auth::user()->id != $id && ! Auth::user()->hasPermissionTo('manage users')) {
@@ -70,10 +78,16 @@ class UserController extends Controller
         $user = User::findOrFail($id);
 
         if ($request->hasFile('image')) {
-            $imageName = 'profile_'.$user->id.'.'.$request->file('image')->getClientOriginalExtension();
-            $path = $request->file('image')->storeAs('profile', $imageName, 'public');
+            $oldImagePath = $user->profileImageStoragePath();
+            $image = $validated['image'];
+            $imageName = 'profile_'.$user->id.'.'.$image->extension();
+            $path = $image->storeAs('profile', $imageName, 'public');
 
-            $user->profile_image_route = 'storage/'.$path;
+            if ($oldImagePath && $oldImagePath !== $path) {
+                Storage::disk('public')->delete($oldImagePath);
+            }
+
+            $user->profile_image_route = $path;
         }
 
         $user->biography = $validated['biography'] ?? null;
@@ -113,6 +127,25 @@ class UserController extends Controller
         ]);
     }
 
+    public function feedback(int $id)
+    {
+        $user = User::findOrFail($id);
+
+        if (Auth::id() !== $user->id && ! Auth::user()->hasPermissionTo('feedback:read')) {
+            abort(403);
+        }
+
+        $releasedFeedback = Feedback::where('controller_id', $id)
+            ->where('status', FeedbackStatus::RELEASED)
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
+
+        return view('users.feedback', [
+            'user' => $user,
+            'releasedFeedback' => $releasedFeedback,
+        ]);
+    }
+
     public function trainingTickets(int $id)
     {
         $user = User::findOrFail($id);
@@ -130,6 +163,43 @@ class UserController extends Controller
         return view('users.training-tickets', [
             'user' => $user,
             'trainingTickets' => $trainingTickets,
+        ]);
+    }
+
+    public function loa(int $id)
+    {
+        $user = User::findOrFail($id);
+
+        if (Auth::user()->id != $user->id) {
+            return response('Unauthorized', 403);
+        }
+
+        $activeLoa = $user->loas()->where('status', '!=', LoaStatus::INACTIVE)->first();
+        $loaHistory = $user->loas()->where('status', LoaStatus::INACTIVE)->paginate(25, ['*'], 'loaPage');
+
+        return view('users.loa', [
+            'user' => $user,
+            'activeLoa' => $activeLoa,
+            'loaHistory' => $loaHistory,
+        ]);
+    }
+
+    public function registeredEvents(int $id)
+    {
+        $user = User::findOrFail($id);
+
+        if (Auth::id() !== $user->id && ! Auth::user()->hasPermissionTo('assign event positions')) {
+            abort(403);
+        }
+
+        $registeredEvents = $user->events()
+            ->withPivot('requested_position', 'start', 'end', 'position_status', 'assigned_position', 'assigned_start', 'assigned_end')
+            ->paginate(25, ['*'], 'eventsPage');
+
+        return view('users.registered-events', [
+            'user' => $user,
+            'userId' => $user->id,
+            'registeredEvents' => $registeredEvents,
         ]);
     }
 

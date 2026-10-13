@@ -12,9 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('user_certifications', function (Blueprint $table) {
+            $table->id();
             $table->foreignId('certification_level_id')->constrained('certification_levels')->cascadeOnDelete();
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
-            $table->primary(['user_id', 'certification_level_id']);
+            $table->unique(['user_id', 'certification_level_id']);
             $table->timestamps();
         });
     }
