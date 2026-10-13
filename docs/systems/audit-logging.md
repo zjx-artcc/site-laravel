@@ -38,9 +38,26 @@ need to add auditing to a model or work on the audit-log viewer.
 | `VisitorRequest` | `app/Models/VisitorRequest.php` | `user_id`, `status`, `reason`, `admin_notes` |
 | `SoloCert` | `app/Models/SoloCert.php` | `user_id`, `issued_by_id`, `position`, `revoked` |
 | `ManualContributor` | `app/Models/ManualContributor.php` | `github_username`, `display_name`, `section`, `note` |
+| `Loa` | `app/Models/Loa.php` | `user_id`, `start_date`, `end_date`, `status`, `response` |
+| `Faq` | `app/Models/Faq.php` | `category`, `question`, `answer`, `sort_order`, `is_published` |
+| `FaqSetting` | `app/Models/FaqSetting.php` | `key`, `value` |
+| `StaffingRequest` | `app/Models/StaffingRequest.php` | `user_id`, `name`, `description`, `requested_at`, `closed` |
+| `Event` | `app/Models/Event.php` | `title`, `description`, `start`, `end`, `type`, `hidden`, `positions_locked`, `published`, `archived`, `archived_at` |
+| `EventPosition` | `app/Models/EventPosition.php` | `event_id`, `user_id`, `requested_position`, `assigned_position`, `position_status` |
+| `EventPositionPreset` | `app/Models/EventPositionPreset.php` | `name`, `positions` |
 
 All use `LogOptions::defaults()`, so only the listed attributes are logged.
-`Publication` and `PublicationCategory` additionally call `logOnlyDirty()`.
+`Publication`, `PublicationCategory`, `Event`, and `EventPosition` additionally
+call `logOnlyDirty()` — useful for models where a save often only touches one
+field (e.g. toggling `Event::published`), so the log shows just what changed
+rather than the full attribute set on every save.
+
+`UserCertification` (`app/Models/UserCertification.php`) is audited
+differently: instead of the `LogsActivity` trait, a `static::created`/
+`static::deleted` hook in `booted()` writes a `Certification issued: …` /
+`Certification revoked: …` entry with the certified `User` as the subject.
+This only fires for explicit grants/revokes through Eloquent — a DB-level
+cascade delete (e.g. removing the owning facility/level) bypasses it.
 
 Note that `LogOptions::defaults()` leaves `logOnlyDirty` **false** and
 `submitEmptyLogs` **true**, so a model without `logOnlyDirty()` records an entry

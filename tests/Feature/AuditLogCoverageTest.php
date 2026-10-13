@@ -1,12 +1,17 @@
 <?php
 
+use App\Enums\EventType;
 use App\Enums\VisitRequestStatus;
 use App\Jobs\AddUserToVisitingRoster;
 use App\Jobs\SyncRoster;
 use App\Jobs\SyncVatsimSessions;
 use App\Jobs\UpdateOnlineControllers;
+use App\Models\Event;
+use App\Models\EventPosition;
+use App\Models\EventPositionPreset;
 use App\Models\ManualContributor;
 use App\Models\SoloCert;
+use App\Models\StaffingRequest;
 use App\Models\User;
 use App\Models\VisitorRequest;
 use Database\Seeders\PermissionSeeder;
@@ -110,6 +115,106 @@ test('contributor add and remove are recorded in the audit log', function () {
     expect($removal->causer_id)->toBe($admin->id);
     // Spatie stores the deleted row under `old`; the viewer merges both keys.
     expect($removal->properties['old']['github_username'])->toBe('octocat');
+});
+
+test('closing and reopening a staffing request is recorded in the audit log', function () {
+    $staff = User::factory()->create();
+    $this->actingAs($staff);
+
+    $staffingRequest = StaffingRequest::create([
+        'user_id' => User::factory()->create()->id,
+        'name' => 'Need a Ground controller',
+        'description' => 'Short-staffed this weekend.',
+        'requested_at' => now(),
+    ]);
+
+    $staffingRequest->update(['closed' => true]);
+
+    $closure = Activity::where('subject_type', StaffingRequest::class)
+        ->where('event', 'updated')
+        ->first();
+
+    expect($closure)->not->toBeNull();
+    expect($closure->causer_id)->toBe($staff->id);
+    expect($closure->properties['attributes']['closed'])->toBeTrue();
+});
+
+test('event publish, lock and archive changes are recorded in the audit log', function () {
+    $staff = User::factory()->create();
+    $this->actingAs($staff);
+
+    $event = Event::create([
+        'title' => 'Fly-In',
+        'description' => 'desc',
+        'start' => now()->addDays(3),
+        'end' => now()->addDays(3)->addHours(2),
+        'type' => EventType::HOME,
+        'featured_fields' => [],
+        'hidden' => false,
+    ]);
+
+    $event->update(['published' => true]);
+
+    $publish = Activity::where('subject_type', Event::class)->where('event', 'updated')->first();
+
+    expect($publish)->not->toBeNull();
+    expect($publish->causer_id)->toBe($staff->id);
+    expect($publish->properties['attributes']['published'])->toBeTrue();
+    // logOnlyDirty(): only the changed attribute should be recorded.
+    expect($publish->properties['attributes'])->not->toHaveKey('title');
+});
+
+test('event position assignment changes are recorded in the audit log', function () {
+    $staff = User::factory()->create();
+    $this->actingAs($staff);
+
+    $event = Event::create([
+        'title' => 'Fly-In',
+        'description' => 'desc',
+        'start' => now()->addDays(3),
+        'end' => now()->addDays(3)->addHours(2),
+        'type' => EventType::HOME,
+        'featured_fields' => [],
+        'hidden' => false,
+    ]);
+
+    $controller = User::factory()->create();
+
+    $position = EventPosition::create([
+        'event_id' => $event->id,
+        'user_id' => $controller->id,
+        'requested_position' => 'JAX_TWR',
+        'start' => now()->addDays(3),
+        'end' => now()->addDays(3)->addHours(2),
+    ]);
+
+    $position->update(['assigned_position' => 'JAX_TWR', 'position_status' => 'assigned']);
+
+    $assignment = Activity::where('subject_type', EventPosition::class)->where('event', 'updated')->first();
+
+    expect($assignment)->not->toBeNull();
+    expect($assignment->causer_id)->toBe($staff->id);
+    expect($assignment->properties['attributes']['assigned_position'])->toBe('JAX_TWR');
+});
+
+test('event position preset changes are recorded in the audit log', function () {
+    $staff = User::factory()->create();
+    $this->actingAs($staff);
+
+    $preset = EventPositionPreset::create([
+        'name' => 'Home Event',
+        'positions' => ['JAX_TWR', 'JAX_APP'],
+    ]);
+
+    expect(Activity::where('subject_type', EventPositionPreset::class)->where('event', 'created')->first()->causer_id)
+        ->toBe($staff->id);
+
+    $preset->update(['positions' => ['JAX_TWR']]);
+
+    $update = Activity::where('subject_type', EventPositionPreset::class)->where('event', 'updated')->first();
+
+    expect($update)->not->toBeNull();
+    expect($update->properties['attributes']['positions'])->toBe(['JAX_TWR']);
 });
 
 test('vatsim statistics sync records a completion entry even when nothing failed', function () {
