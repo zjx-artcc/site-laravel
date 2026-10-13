@@ -16,7 +16,7 @@ test('the training ticket form provides a markdown editor for instructor notes',
         ->get(route('training-tickets.create'))
         ->assertOk()
         ->assertSee('markdown-editor-instructor_notes')
-        ->assertSee('Markdown shortcuts are supported.');
+        ->assertSee('quilljs-markdown.js', false);
 });
 
 test('formatted instructor notes are sanitized and rendered for training staff', function () {
