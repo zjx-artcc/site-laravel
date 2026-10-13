@@ -59,25 +59,33 @@ a completion entry with Spatie's `activity()` helper:
 
 ```php
 activity()->withProperties(['attributes' => [
-    'sessions_received' => count($sessions),
-    'sessions_stored' => $stored,
-]])->log('Statsim sync complete');
+    'sessions_accepted' => $accepted,
+    'sessions_skipped' => $skipped,
+]])->log('VATSIM statistics sync page complete');
 ```
 
 | Job | Entry | Notes |
 | --- | --- | --- |
 | `SyncRoster` | `Roster sync complete` | Plus one `Removed from roster` entry per departing controller, with that user as the subject |
-| `SyncStatsimSessions` | `Statsim sync complete` | Month, sessions received/stored, controllers updated |
+| `SyncVatsimSessions` | `VATSIM statistics sync page complete` | One entry per paginated API page: offset/next offset, sessions accepted/skipped, recompute operations |
 | `SyncTrainingTickets` | `Training ticket sync complete` | Tickets pending/synced/failed |
+| `UpdateOnlineControllers` | `Online controller sync failed` | **Failure only** — see below |
+| `AddUserToVisitingRoster` | `Added user to visiting roster` / `Failed to add user to visiting roster` | Subject is the affected `User`, when found |
 
 These entries have **no `event`** (the viewer falls back to `description` for
 the action badge), **no causer** (they run unattended, so the Who column shows
-"System"), and — except for roster removals — **no subject**, so the Record
-column is empty and they are not reachable via the record-type filter.
+"System"), and — except for roster removals and visiting-roster entries — **no
+subject**, so the Record column is empty and they are not reachable via the
+record-type filter.
 
-`UpdateOnlineControllers` deliberately writes **no** audit entry: it runs every
-minute and would add ~1,400 rows a day. Its failures go to the application log
-at `error` level.
+`UpdateOnlineControllers` runs every minute, so a success entry on every run
+would add ~1,400 rows a day for no benefit — only its failure paths (the
+request throwing, or a 2xx response with an unparseable payload) write an
+audit entry. Its failures also go to the application log at `error` level.
+Note that `Http::retry()` defaults to `$throw = true` in this Laravel version,
+so a non-2xx response is turned into a thrown `RequestException` before the
+job's own `$onlineData->failed()` check ever runs — that check (and its audit
+entry) is only reachable via a 2xx response with a non-array payload.
 
 ### The `activity_log` table
 
@@ -149,10 +157,11 @@ LOG_LEVEL=debug
 ```
 
 `SyncRoster` logs the endpoint it is calling and the membership diff
-(`roster_size`, `departed_cids`); `SyncStatsimSessions` logs the prefixes and
-rostered-controller count it filters against. This goes to whatever `LOG_STACK`
-is shipping to, not to the audit log. Set it back to `info` afterwards — if the
-`discord` channel is in `LOG_STACK`, debug output ships there too.
+(`roster_size`, `departed_cids`); `SyncVatsimSessions` logs each page it
+requests/receives and the prefixes and rostered-controller count it filters
+against. This goes to whatever `LOG_STACK` is shipping to, not to the audit
+log. Set it back to `info` afterwards — if the `discord` channel is in
+`LOG_STACK`, debug output ships there too.
 
 ## Permissions / middleware
 

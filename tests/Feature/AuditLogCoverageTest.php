@@ -1,13 +1,16 @@
 <?php
 
 use App\Enums\VisitRequestStatus;
+use App\Jobs\AddUserToVisitingRoster;
 use App\Jobs\SyncRoster;
-use App\Jobs\SyncStatsimSessions;
+use App\Jobs\SyncVatsimSessions;
+use App\Jobs\UpdateOnlineControllers;
 use App\Models\ManualContributor;
 use App\Models\SoloCert;
 use App\Models\User;
 use App\Models\VisitorRequest;
 use Database\Seeders\PermissionSeeder;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Spatie\Activitylog\Models\Activity;
 
@@ -109,16 +112,73 @@ test('contributor add and remove are recorded in the audit log', function () {
     expect($removal->properties['old']['github_username'])->toBe('octocat');
 });
 
-test('statsim sync records a completion entry even when nothing failed', function () {
-    Http::fake(['api.statsim.net/*' => Http::response([])]);
+test('vatsim statistics sync records a completion entry even when nothing failed', function () {
+    config()->set('app.vatsim_api_url', 'https://api.vatsim.net');
+    config()->set('app.vatsim_statistics_page_size', 50);
 
-    (new SyncStatsimSessions(2026, 1))->handle();
+    Http::fake(fn () => Http::response(['count' => 0, 'items' => []]));
 
-    $entry = Activity::where('description', 'Statsim sync complete')->first();
+    (new SyncVatsimSessions('2026-01-01T00:00:00Z', '2026-01-31T23:59:59Z'))->handle();
+
+    $entry = Activity::where('description', 'VATSIM statistics sync page complete')->first();
 
     expect($entry)->not->toBeNull();
-    expect($entry->properties['attributes']['month'])->toBe('2026-01');
-    expect($entry->properties['attributes']['sessions_received'])->toBe(0);
+    expect($entry->properties['attributes']['sessions_accepted'])->toBe(0);
+    expect($entry->properties['attributes']['sessions_skipped'])->toBe(0);
+});
+
+test('online controller sync failure is recorded in the audit log', function () {
+    config()->set('app.vatsim_api_url', 'https://api.vatsim.net');
+
+    // A 2xx response with a non-array payload: Http::retry()'s default $throw
+    // means a non-2xx status never reaches this branch, so this is the path
+    // that actually exercises it.
+    Http::fake(fn () => Http::response('not json', 200));
+
+    (new UpdateOnlineControllers)->handle();
+
+    $entry = Activity::where('description', 'Online controller sync failed')->first();
+
+    expect($entry)->not->toBeNull();
+    expect($entry->properties['attributes']['status'])->toBe(200);
+});
+
+test('an unreachable VATSIM online-controller endpoint is recorded in the audit log', function () {
+    config()->set('app.vatsim_api_url', 'https://api.vatsim.net');
+
+    Http::fake(fn () => throw new ConnectionException('Connection refused'));
+
+    (new UpdateOnlineControllers)->handle();
+
+    $entry = Activity::where('description', 'Online controller sync failed')->first();
+
+    expect($entry)->not->toBeNull();
+    expect($entry->properties['attributes']['exception'])->toContain('Connection refused');
+});
+
+test('adding a user to the visiting roster is recorded in the audit log', function () {
+    $user = User::factory()->create();
+    Http::fake(['*/roster/manageVisitor/*' => Http::response(['status' => 'OK'])]);
+
+    (new AddUserToVisitingRoster($user->id))->handle();
+
+    $entry = Activity::where('description', 'Added user to visiting roster')->first();
+
+    expect($entry)->not->toBeNull();
+    expect($entry->subject_id)->toBe($user->id);
+    expect($entry->properties['attributes']['user_id'])->toBe($user->id);
+});
+
+test('a failed visiting roster add is recorded in the audit log', function () {
+    $user = User::factory()->create();
+    Http::fake(['*/roster/manageVisitor/*' => Http::response([], 500)]);
+
+    (new AddUserToVisitingRoster($user->id))->handle();
+
+    $entry = Activity::where('description', 'Failed to add user to visiting roster')->first();
+
+    expect($entry)->not->toBeNull();
+    expect($entry->subject_id)->toBe($user->id);
 });
 
 test('roster sync records a completion entry and each controller removed', function () {
@@ -138,8 +198,11 @@ test('roster sync records a completion entry and each controller removed', funct
 });
 
 test('job entries render on the admin audit log page', function () {
-    Http::fake(['api.statsim.net/*' => Http::response([])]);
-    (new SyncStatsimSessions(2026, 1))->handle();
+    config()->set('app.vatsim_api_url', 'https://api.vatsim.net');
+    config()->set('app.vatsim_statistics_page_size', 50);
+
+    Http::fake(fn () => Http::response(['count' => 0, 'items' => []]));
+    (new SyncVatsimSessions('2026-01-01T00:00:00Z', '2026-01-31T23:59:59Z'))->handle();
 
     $staff = User::factory()->create();
     $staff->givePermissionTo('view dashboard', 'view audit logs');
@@ -147,6 +210,6 @@ test('job entries render on the admin audit log page', function () {
     $response = $this->actingAs($staff)->get(route('logs.index'));
 
     $response->assertStatus(200);
-    $response->assertSee('Statsim sync complete');
-    $response->assertSee('Sessions Received');
+    $response->assertSee('VATSIM statistics sync page complete');
+    $response->assertSee('Sessions Accepted');
 });

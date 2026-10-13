@@ -32,6 +32,11 @@ class UpdateOnlineControllers implements ShouldQueue
         } catch (\Exception $e) {
             Log::error('Failed to fetch VATSIM online controllers: '.$e->getMessage());
 
+            activity()->withProperties(['attributes' => [
+                'endpoint' => $API_ENDPOINT,
+                'exception' => $e->getMessage(),
+            ]])->log('Online controller sync failed');
+
             return;
         }
 
@@ -39,12 +44,16 @@ class UpdateOnlineControllers implements ShouldQueue
 
         // Checked before truncating: a failed request used to empty the table
         // anyway, showing the facility as fully offline on any VATSIM blip.
-        // Not written to the audit log — this runs every minute.
         if ($onlineData->failed() || ! is_array($controllers)) {
             Log::error('Online controller sync failed', [
                 'status' => $onlineData->status(),
                 'endpoint' => $API_ENDPOINT,
             ]);
+
+            activity()->withProperties(['attributes' => [
+                'status' => $onlineData->status(),
+                'endpoint' => $API_ENDPOINT,
+            ]])->log('Online controller sync failed');
 
             return;
         }
