@@ -13,7 +13,7 @@ The site is a VATSIM ARTCC web app built on a conventional server-rendered Larav
 | --- | --- | --- |
 | Framework | Laravel 12 (`laravel/framework: ^12.0`) | PHP `^8.2`. Uses the streamlined `bootstrap/app.php` application-configuration style. |
 | Interactivity | Livewire (class-based) | Components live in `app/Livewire/` and extend `Livewire\Component`. `livewire/volt` is installed and `VoltServiceProvider` mounts the Volt view paths, but no single-file Volt components are used — every component is a class with a matching Blade view under `resources/views/livewire/`. |
-| Styling | Tailwind CSS v4 + daisyUI 5 | Configured entirely in CSS (`resources/css/app.css`), not a JS config file. Uses a single custom daisyUI theme named `light`. |
+| Styling | Tailwind CSS v4 + daisyUI 5 | Configured entirely in CSS (`resources/css/app.css`), not a JS config file. Defines custom daisyUI `light` (default) and `dark` (prefers-dark) themes; daisyUI's built-in themes are disabled (`themes: false`) so they can't leak their own colours into pages. |
 | Build tool | Vite | Config in `vite.config.js` via `laravel-vite-plugin` and `@tailwindcss/vite`. Entry points are `resources/css/app.css` and `resources/js/app.js`. |
 | Auth | Laravel Socialite (VATSIM Connect) | Custom Socialite provider; see [authentication](authentication-authorization.md). |
 | Authorization | `spatie/laravel-permission` | Roles and permissions, enforced with middleware aliases. |

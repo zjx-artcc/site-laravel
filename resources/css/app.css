@@ -42,14 +42,14 @@
 }
 
 @plugin "daisyui" {
-    themes: light --default, dark --prefersdark;
+    themes: false;
 }
 
 
 
 @plugin "daisyui/theme" {
     name: "light"; /* Renamed to reflect the update */
-    default: false;
+    default: true;
     prefersdark: false;
     color-scheme: "light";
 
