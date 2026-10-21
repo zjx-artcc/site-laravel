@@ -20,6 +20,7 @@ use App\Http\Controllers\LoaController;
 use App\Http\Controllers\News\NewsController;
 use App\Http\Controllers\PublicationsController;
 use App\Http\Controllers\RosterController;
+use App\Http\Controllers\RosterPurgeController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\StaffingRequestController;
 use App\Http\Controllers\StatisticsController;
@@ -233,6 +234,13 @@ Route::prefix('admin')->middleware('permission:view dashboard')->group(function 
 
         Route::put('visit-requests/{visitRequest}/deny', [VisitFacilityController::class, 'deny'])
             ->name('visit.deny');
+
+        Route::get('roster-purge', [RosterPurgeController::class, 'index'])->name('roster-purge.index');
+        Route::get('roster-purge/export', [RosterPurgeController::class, 'export'])->name('roster-purge.export');
+    });
+
+    Route::middleware('permission:remove inactive controllers')->group(function () {
+        Route::post('roster-purge/remove', [RosterPurgeController::class, 'remove'])->name('roster-purge.remove');
     });
 
     Route::middleware('permission:manage loas')->group(function () {
