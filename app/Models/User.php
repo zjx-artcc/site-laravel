@@ -128,8 +128,8 @@ class User extends Authenticatable
     protected function operatingInitials(): Attribute
     {
         return Attribute::make(
-            get: fn ($value) => strtoupper($value),
-            set: fn ($value) => strtoupper($value)
+            get: fn ($value) => $value === null ? null : strtoupper($value),
+            set: fn ($value) => $value === null || $value === '' ? null : strtoupper($value)
         );
     }
 

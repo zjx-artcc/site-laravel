@@ -95,6 +95,20 @@ Relationships (all defined on `User`): `staffRoles` (hasMany `Staff`),
 | `primary_contact` | boolean, default `false` | Cast to boolean |
 | `user_id` | foreignId → `users` | |
 
+### reserved_operating_initials
+
+`2026_09_01_000000_create_reserved_operating_initials_table.php`. OIs that may never be assigned
+(e.g. retired in memory of a member). Model: `App\Models\ReservedOperatingInitial`
+(`primaryKey = 'initials'`, string, non-incrementing). See
+[`systems/operating-initials.md`](systems/operating-initials.md).
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `initials` | string(2), primary key | Upper-cased by the model |
+| `reason` | string, nullable | |
+| `reserved_by` | foreignId → `users`, nullable | `nullOnDelete` |
+| `created_at` / `updated_at` | timestamps | |
+
 ### online_controllers
 
 `2025_11_02_220134_add_online_controllers.php`. Snapshot of who is controlling online.

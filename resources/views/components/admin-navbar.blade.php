@@ -81,6 +81,9 @@
                 <ul tabindex="-1" class="dropdown-content text-base-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-sm">
                     <li><a href={{ route('admin.index') }}>Dashboard</a></li>
                     <li><a href={{ route('manage-users.index') }}>User Management</a></li>
+                    @if(auth()->user()?->can('manage users'))
+                        <li><a href="{{ route('admin.oi-matrix') }}">OI Matrix</a></li>
+                    @endif
                     <li>
                         <a href={{ route('visit.manage') }}>Visitor Requests
                             @if($pendingVisitorRequests > 0)
@@ -267,6 +270,9 @@
                         <ul class="menu w-full flex-col flex-nowrap px-0 py-2 gap-0">
                             <li><a href={{ route('admin.index') }} class="rounded-none px-3 py-3.5 text-lg">Dashboard</a></li>
                             <li><a href={{ route('manage-users.index') }} class="rounded-none px-3 py-3.5 text-lg">User Management</a></li>
+                            @if(auth()->user()?->can('manage users'))
+                                <li><a href="{{ route('admin.oi-matrix') }}" class="rounded-none px-3 py-3.5 text-lg">OI Matrix</a></li>
+                            @endif
                             <li>
                                 <a href={{ route('visit.manage') }} class="rounded-none px-3 py-3.5 text-lg">Visitor Requests
                                     @if($pendingVisitorRequests > 0)

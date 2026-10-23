@@ -78,6 +78,9 @@
     @role('admin')
         <x-card-component title="Facility Admin Quick Links">
             <a class='btn btn-primary mt-5' href="{{ route('manage-users.index') }}">User Management</a>
+            @haspermission('manage users')
+                <a class='btn btn-primary' href="{{ route('admin.oi-matrix') }}">OI Matrix</a>
+            @endhaspermission
             <a class='btn btn-primary' href="{{ route('admin.news.index') }}">News Management</a>
             @haspermission('manage visiting controllers')
                 <a class='btn btn-primary' href="{{ route('visit.manage') }}">Visitor Requests

@@ -189,6 +189,11 @@ Route::prefix('admin')->middleware('permission:view dashboard')->group(function 
     Route::get('users', [UserManagementController::class, 'index'])
         ->name('manage-users.index');
 
+    // Operating Initials Matrix
+    Route::get('oi-matrix', fn () => view('admin.oi-matrix'))
+        ->middleware('permission:manage users')
+        ->name('admin.oi-matrix');
+
     // FAQ Management (all ARTCC staff)
     Route::middleware('permission:manage faqs')->group(function () {
         Route::get('faqs', [FaqController::class, 'manage'])->name('admin.faqs.index');

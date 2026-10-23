@@ -9,6 +9,7 @@ use App\Mail\VisitorRequestReceived;
 use App\Mail\VisitorRequestRejected;
 use App\Models\User;
 use App\Models\VisitorRequest;
+use App\Rules\NotReservedOperatingInitials;
 use App\Services\VisitingChecklistService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -109,7 +110,7 @@ class VisitFacilityController extends Controller
     public function approve(Request $request, int $visitRequest)
     {
         $validated = $request->validate([
-            'operatingInitials' => 'required|string|size:2',
+            'operatingInitials' => ['required', 'string', 'size:2', 'alpha', new NotReservedOperatingInitials],
             'adminNotes' => 'string|nullable|max:1000',
         ], [
             'operatingInitials.size' => 'Operating initials must be 2 characters long',
