@@ -81,6 +81,7 @@ class User extends Authenticatable
             'rating' => ControllerRating::class,
             'joined_at' => 'datetime',
             'rostered' => 'boolean',
+            'roster_removal_queued_at' => 'datetime',
         ];
     }
 

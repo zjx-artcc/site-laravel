@@ -203,12 +203,42 @@ online controllers belong to ZJX. The initial set is seeded by
 `StatisticsPrefixesSeeder` (`database/seeders/StatisticsPrefixesSeeder.php`):
 `JAX, ZJX, MCO, DAB, TLH, PNS, CHS, LCQ, ORL, SFB, TIX, ISM, LEE, VQQ, NIP`.
 
+### Roster purge assistant (`/admin/roster-purge`)
+
+`RosterPurgeController` (`app/Http/Controllers/RosterPurgeController.php`,
+view `resources/views/roster-purge/index.blade.php`) helps staff find and remove
+inactive controllers for a calendar quarter:
+
+- **Flagged list** — every rostered user whose VATSIM Core hours in the selected
+  quarter (`controller_monthly_stats`, populated by `SyncVatsimSessions` from the
+  VATSIM Core API) plus hours spent instructing are below the "Flag below" threshold
+  (default 3h). Rostered users with no VATSIM Core stats count as 0h.
+- **Max training (ticket hours)** — optional extra filter; only flags users with
+  fewer training-ticket hours (student + instructor, `session_start` to
+  `session_end`) in the quarter than the limit.
+- **LOAs** — users with an approved LOA are highlighted with an "On LOA" badge
+  (linking to the LOA for users with `manage loas`), can't be selected, and are
+  skipped server-side on removal. The "Show LOA" toggle hides them entirely.
+- **Export** — `GET /admin/roster-purge/export` downloads the flagged list as CSV.
+- **Removal** — `POST /admin/roster-purge/remove` (permission
+  `remove inactive controllers`) requires a reason, refuses to remove the
+  requester, and queues one `RemoveUserFromRoster` job per user. The job calls
+  VATUSA, writes an audit log entry, and emails the controller (or the requester
+  on failure). A queue worker must be running.
+- **Pending removals** — queuing a removal sets `users.roster_removal_queued_at`.
+  Those users are left out of the flagged list, the controller search, and the
+  CSV export, and selecting them again queues nothing. The job clears the column
+  when it finishes, and its `failed()` hook clears it if it throws, so a failed
+  removal shows up in the list again and can be retried.
+
 ## Permissions / middleware
 
 | Route | Path | Middleware |
 | --- | --- | --- |
 | `roster.index` | `GET /roster` | none (public) |
 | `staff.index` | `GET /staff` | none (public) |
+| `roster-purge.index` / `roster-purge.export` | `GET /admin/roster-purge[/export]` | `permission:view dashboard` (outer `admin` group) + `permission:manage visiting controllers` |
+| `roster-purge.remove` | `POST /admin/roster-purge/remove` | `permission:view dashboard` + `permission:remove inactive controllers` |
 | `statistics-prefixes.*` (resource) | `/admin/data/statistics-prefixes` | `permission:view dashboard` (outer `admin` group) + `permission:manage statistics prefixes` |
 
 The `manage statistics prefixes` permission is granted to the `facilities` role in

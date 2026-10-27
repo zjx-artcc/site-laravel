@@ -86,6 +86,9 @@
                     @endif
                 </a>
             @endhaspermission
+            @haspermission('manage visiting controllers')
+                <a class='btn btn-primary' href="{{ route('roster-purge.index') }}">Roster Purge Assistant</a>
+            @endhaspermission
             @haspermission('manage loas')
                 <a class='btn btn-primary' href="{{ route('loa.manage') }}">LOA Requests
                     @if(Loa::where('status', LoaStatus::PENDING)->count() > 0)
