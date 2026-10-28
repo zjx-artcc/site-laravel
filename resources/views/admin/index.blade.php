@@ -9,124 +9,157 @@
 @endphp
 
 @section('body')
-    <div class='flex flex-col gap-5 sm:flex-row sm:flex-wrap sm:gap-10'>
-        <x-card-component title="ARTCC Membership Overview">
-            <div class="mt-5">
-                <h2 class='text-2xl'><strong>Home:</strong> {{ $homeControllers }}</h2>
-                <h2 class='text-2xl'><strong>Visiting:</strong> {{ $visitingControllers }}</h2>
-                <h2 class='text-2xl'><strong>Total:</strong> {{ $homeControllers + $visitingControllers }}</h2>
-            </div>
-        </x-card-component>
 
-        @role('training')
-            <x-card-component title="Training Quick Links">
-                <a class='btn btn-primary mt-5' href="{{ route('admin.training.index') }}">Training Dashboard</a>
-                <a class='btn btn-primary' href="{{ route('training-assignments.index') }}">My Students (TODO)</a>
-                <a class='btn btn-primary' href="{{ route('training-assignments.index') }}">Training Assignments</a>
-                <a class='btn btn-primary' href="{{ route('training-tickets.index') }}">Training Tickets</a>
-                <a class='btn btn-primary' href="{{ route('training-tickets.create') }}">Create Training Ticket</a>
-                <a class='btn btn-primary' href="{{ route('solo-certs.index') }}">Solo Certs</a>
-                <a class='btn btn-primary' href="{{ route('solo-certs.create') }}">Issue Solo Cert</a>
-                @haspermission('certifications:write')
-                    <a class='btn btn-primary' href="{{ route('certifications.index') }}">Certifications</a>
-                @endhaspermission
-            </x-card-component>
-        @endrole
-
-        @if(auth()->user()?->can('manage contributors') || auth()->user()?->can('manage faqs'))
-        <x-card-component title="Web Quick Links">
-            @haspermission('manage contributors')
-                <a class='btn btn-primary mt-5' href="{{ route('admin.contributors.index') }}">Manage Contributors</a>
-            @endhaspermission
-            @haspermission('manage faqs')
-                <a class='btn btn-primary mt-5' href="{{ route('admin.faqs.index') }}">FAQ Management</a>
-            @endhaspermission
-        </x-card-component>
-    @endif
-
-    @role('facilities')
-            <x-card-component title="Facilities Quick Links">
-                @haspermission('manage statistics prefixes')
-                    <a class='btn btn-primary mt-5' href="{{ route('statistics-prefixes.index') }}">Statistics Prefixes</a>
-                @endhaspermission
-                @haspermission('certification-facilities:write')
-                    <a class='btn btn-primary mt-5' href="{{ route('certification-facilities.index') }}">Certification Facilities Management</a>
-                @endhaspermission
-                @haspermission('documents:write')
-                    <a class='btn btn-primary mt-5' href="{{ route('admin.publications.index') }}">Document Management</a>
-                @endhaspermission
-            </x-card-component>
-    @endrole
-
-    @role('events')
-        @haspermission('manage events')
-            <x-card-component title="Events Quick Links">
-                <a class='btn btn-primary mt-5' href="{{ route('admin.events.index') }}">Manage Events</a>
-                <a class='btn btn-primary' href="{{ route('admin.events.position-presets.index') }}">Position Presets</a>
-                <a class='btn btn-primary' href="{{ route('admin.events.event-fields.index') }}">Event Field Presets</a>
-                @haspermission('staffing-requests:read')
-                    <a class='btn btn-primary' href="{{ route('admin.staffing-requests.index') }}">Staffing Requests
-                        @if(StaffingRequest::where('closed', false)->count() > 0)
-                            <span class='badge badge-primary'>{{ StaffingRequest::where('closed', false)->count() }}</span>
-                        @endif
-                    </a>
-                @endhaspermission
-            </x-card-component>
-        @endhaspermission
-    @endrole
-
-    @role('admin')
-        <x-card-component title="Facility Admin Quick Links">
-            <a class='btn btn-primary mt-5' href="{{ route('manage-users.index') }}">User Management</a>
-            <a class='btn btn-primary' href="{{ route('admin.news.index') }}">News Management</a>
-            @haspermission('manage visiting controllers')
-                <a class='btn btn-primary' href="{{ route('visit.manage') }}">Visitor Requests
-                    @if(VisitorRequest::where('status', VisitRequestStatus::PENDING)->count() > 0)
-                        <span class='badge badge-primary'>{{ VisitorRequest::where('status', VisitRequestStatus::PENDING)->count() }}</span>
-                    @endif
-                </a>
-            @endhaspermission
-            @haspermission('manage visiting controllers')
-                <a class='btn btn-primary' href="{{ route('roster-purge.index') }}">Roster Purge Assistant</a>
-            @endhaspermission
-            @haspermission('manage loas')
-                <a class='btn btn-primary' href="{{ route('loa.manage') }}">LOA Requests
-                    @if(Loa::where('status', LoaStatus::PENDING)->count() > 0)
-                        <span class='badge badge-primary'>{{ Loa::where('status', LoaStatus::PENDING)->count() }}</span>
-                    @endif
-                </a>
-            @endhaspermission
-            @haspermission('view audit logs')
-                <a class='btn btn-primary' href="{{ route('logs.index') }}">Audit Log</a>
-            @endhaspermission
-        </x-card-component>
-    @endrole
-
-    @haspermission('feedback:read')
-        <x-card-component title="Admin Quick Links">
-            <a class='btn btn-primary mt-5' href="{{ route('admin.feedback.index') }}">Manage Feedback</a>
-        </x-card-component>
-    @endhaspermission
-
-    @haspermission('statistics:write')
-        <x-card-component title="Manual Statistics Sync">
-            <form method="POST" action="{{ route('statistics.sync') }}" class="mt-5 space-y-3">
-                @csrf
-                <p class="text-sm font-semibold">Sync VATSIM Core Statistics</p>
-                <p class="text-sm text-base-content/60">The Core API reads all sessions in this date range and stores eligible rostered-controller sessions.</p>
-                <div class="flex flex-wrap gap-3 items-end">
-                    <div class="flex flex-col gap-1">
-                        <label for="statistics-from-date" class="text-xs text-base-content/60">From (UTC)</label>
-                        <input id="statistics-from-date" name="from_date" type="date" class="input input-sm" value="{{ old('from_date', $statisticsSyncFromDate) }}" required>
-                    </div>
-                    <div class="flex flex-col gap-1">
-                        <label for="statistics-to-date" class="text-xs text-base-content/60">To (UTC)</label>
-                        <input id="statistics-to-date" name="to_date" type="date" class="input input-sm" value="{{ old('to_date', $statisticsSyncToDate) }}" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-sm">Sync</button>
-                </div>
-            </form>
-        </x-card-component>
-    @endhaspermission
+    <div class="mb-3">
+        <h1 class="col-span-full text-2xl text-primary font-bold">Welcome back, {{ auth()->user()->first_name }}!</h1>
+        <p class="">Here's what's going on in the ARTCC today.</p>
     </div>
+    <section class="grid grid-cols-2 xl:grid-cols-10 gap-3 items-start">
+        <x-card-component class="col-span-full xl:col-span-2 min-w-0" title="Total Rostered Users">
+            <p class="text-2xl text-primary font-extrabold">{{ $totalRosteredUsers }}</p>
+        </x-card-component>
+
+        <x-card-component class="col-span-full xl:col-span-2 min-w-0" title="Online Controllers">
+            <p class="text-2xl text-primary font-extrabold">{{ $onlineControllers }}</p>
+        </x-card-component>
+
+        <x-card-component class="col-span-full xl:col-span-2 min-w-0" title="Events This Month">
+            <p class="text-2xl text-primary font-extrabold">{{ $eventsThisMonth }}</p>
+        </x-card-component>
+
+        <x-card-component class="col-span-full xl:col-span-2 min-w-0" title="Training Assignments">
+            <p class="text-2xl text-primary font-extrabold">{{ $trainingAssignments }}</p>
+        </x-card-component>
+
+        <x-card-component class="col-span-full xl:col-span-2 min-w-0" title="Training Requests">
+            <p class="text-2xl text-primary font-extrabold">{{ $trainingRequests }}</p>
+        </x-card-component>
+
+        <div class="col-span-full xl:col-span-6 min-w-0">
+            <x-card-component class="min-w-0" title="Active Center Split">
+                <div class="w-full min-w-0 overflow-x-auto">
+                    <livewire:sector-map/>
+                </div>
+            </x-card-component>
+        </div>
+
+
+        <div class="col-span-full xl:col-span-4 min-w-0 grid grid-cols-1 gap-3 items-start">
+            <x-card-component title="Upcoming Events" class="col-span-full min-w-0">
+                <div class="flex justify-between">
+                    @if(!$upcomingEvents->isEmpty())
+                        <h1 class="font-bold text-base-content">
+                            <a href="{{ route('events.index') }}">View All Events</a>
+                        </h1>
+                    @endif
+                </div>
+
+                @if($upcomingEvents->isEmpty())
+                    <h1 class="text-lg">No upcoming events.</h1>
+                @else
+                    @foreach($upcomingEvents as $event)
+                        <a href="{{ route('events.show', $event->id) }}" class="flex flex-col my-2">
+                            <div class="bg-base-300 rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition">
+                                <div class="flex">
+                                    <div
+                                        class="bg-primary text-primary-content w-14 sm:w-16 shrink-0 flex flex-col items-center justify-center py-2"
+                                    >
+                                        <span class="text-xs sm:text-sm font-semibold uppercase">
+                                            {{ $event->start->format('M') }}
+                                        </span>
+
+                                        <span class="text-2xl sm:text-3xl font-bold leading-none">
+                                            {{ $event->start->format('d') }}
+                                        </span>
+                                    </div>
+
+                                    <div class="p-3 flex-1 min-w-0">
+                                        <h3 class="font-bold text-base sm:text-lg truncate">
+                                            {{ $event->title }}
+                                            @if($event->isStartingSoon())
+                                                <span class="badge badge-primary badge-xs ml-1">Starting Soon</span>
+                                            @endif
+                                        </h3>
+
+                                        <p class="text-sm text-base-content/70 mt-1">
+                                            {{ $event->getFormattedTimeAttribute() }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+                    @endforeach
+                @endif
+            </x-card-component>
+
+            <x-card-component title="Latest Announcements" class="min-w-0">
+                @if($news->isEmpty())
+                    <h1 class="text-lg">No recent announcements.</h1>
+                @endif
+
+                <div>
+                    @foreach($news as $n)
+                        <div class="flex flex-col my-5">
+                            <div
+                                class="bg-base-300 rounded-md overflow-hidden cursor-pointer hover:shadow-lg transition w-full"
+                                onclick="news_modal_{{ $n->id }}.showModal()"
+                            >
+                                <h3 class="font-medium text-base sm:text-lg text-base-content px-3 py-2">
+                                    {{ $n->title }}
+                                </h3>
+                            </div>
+                        </div>
+
+                        <dialog id="news_modal_{{ $n->id }}" class="modal">
+                            <div class="modal-box w-11/12 max-w-2xl">
+                                <h3 class="text-xl font-bold">
+                                    {{ $n->title }}
+                                </h3>
+
+                                <p class="text-md font-medium">
+                                    {{ $n->published_at }}
+                                </p>
+
+                                <div class="py-4">
+                                    {!! Purify::clean($n->content) !!}
+                                </div>
+
+                                <div class="modal-action">
+                                    <form method="dialog">
+                                        <button class="btn">
+                                            Close
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </dialog>
+                    @endforeach
+                </div>
+            </x-card-component>
+
+            @haspermission('statistics:write')
+            <x-card-component title="Manual Statistics Sync" class="min-w-0">
+                <form method="POST" action="{{ route('statistics.sync') }}" class="mt-5 space-y-3">
+                    @csrf
+                    <p class="text-sm font-semibold">Sync VATSIM Core Statistics</p>
+                    <p class="text-sm text-base-content/60">The Core API reads all sessions in this date range and
+                        stores eligible rostered-controller sessions.</p>
+                    <div class="flex flex-wrap gap-3 items-end">
+                        <div class="flex flex-col gap-1">
+                            <label for="statistics-from-date" class="text-xs text-base-content/60">From (UTC)</label>
+                            <input id="statistics-from-date" name="from_date" type="date" class="input input-sm"
+                                   value="{{ old('from_date', $statisticsSyncFromDate) }}" required>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label for="statistics-to-date" class="text-xs text-base-content/60">To (UTC)</label>
+                            <input id="statistics-to-date" name="to_date" type="date" class="input input-sm"
+                                   value="{{ old('to_date', $statisticsSyncToDate) }}" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm">Sync</button>
+                    </div>
+                </form>
+            </x-card-component>
+            @endhaspermission
+        </div>
+    </section>
 @endsection
