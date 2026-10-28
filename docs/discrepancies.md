@@ -108,6 +108,7 @@ These are functional defects found while documenting. Grouped by system. (Traini
 - **9.6** `RosterController` has a typo'd local variable `$certificaionFacilities` (passed correctly to the view; cosmetic).
 - **9.7** `Staff::fromFacilityInfoDTO` sets `title_long` to "Training Administrator" for both `TA` and `ATA` (ATA should likely be "Assistant Training Administrator").
 - **9.8** `routes/web.php` has a `TODO: make store` on the `training-assignment/create` POST route (a `create` action used for a store operation), and `training-assignments.destroy` takes the id via request payload rather than a route parameter — inconsistent with the other resourceful routes.
+- **9.9** `UserController::update()` can't clear a user's operating initials from the edit form: it assigns `strtoupper($validated['operatingInitials'] ?? $user->operating_initials)`, so an empty submission (null after `ConvertEmptyStringsToNull`) keeps the old value silently. The only way to unassign an OI is the [OI Matrix](systems/operating-initials.md). Fix by distinguishing "field absent" from "field submitted empty" (e.g. `$request->has('operatingInitials')`) and storing `null` when empty — the `User` mutator already converts `''`/`null` to `null`.
 
 ---
 

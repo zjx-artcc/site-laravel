@@ -35,6 +35,7 @@ For the full picture, start with [`docs/architecture.md`](docs/architecture.md).
 | Visiting controllers | [`docs/systems/visiting-controllers.md`](docs/systems/visiting-controllers.md) |
 | Certifications | [`docs/systems/certifications.md`](docs/systems/certifications.md) |
 | Users & profiles | [`docs/systems/users-and-profiles.md`](docs/systems/users-and-profiles.md) |
+| Operating initials (OI matrix) | [`docs/systems/operating-initials.md`](docs/systems/operating-initials.md) |
 | Audit logging | [`docs/systems/audit-logging.md`](docs/systems/audit-logging.md) |
 | Known issues & follow-ups | [`docs/discrepancies.md`](docs/discrepancies.md) |
 
