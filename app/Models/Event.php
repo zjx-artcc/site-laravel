@@ -7,10 +7,12 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Event extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     private const BANNER_DIRECTORIES = ['event/', 'events/'];
 
@@ -99,5 +101,12 @@ class Event extends Model
     public function isStartingSoon(): bool
     {
         return $this->start !== null && $this->start->between(now(), now()->addHours(24));
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['title', 'description', 'start', 'end', 'type', 'hidden', 'positions_locked', 'published', 'archived', 'archived_at'])
+            ->logOnlyDirty();
     }
 }

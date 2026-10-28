@@ -6,10 +6,12 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Laravel\Scout\Searchable;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class SoloCert extends Model
 {
-    use Searchable;
+    use LogsActivity, Searchable;
 
     protected $fillable = [
         'user_id',
@@ -45,6 +47,11 @@ class SoloCert extends Model
         return Attribute::make(
             get: fn () => $this->expires->isBefore(now()),
         );
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()->logOnly(['user_id', 'issued_by_id', 'position', 'revoked']);
     }
 
     public function toSearchableArray(): array
