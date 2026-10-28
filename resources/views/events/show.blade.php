@@ -36,10 +36,10 @@
                 <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 text-sm text-base-content/70 mt-1">
                     <div class="flex items-center gap-1.5">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                        <span>{{ $event->start->format('M j, Y g:i A') }}</span>
+                        <x-zulu-time :time="$event->start"/>
                     </div>
                     <span class="hidden sm:inline">–</span>
-                    <span class="ml-5.5 sm:ml-0">{{ $event->end->format('M j, Y g:i A') }}</span>
+                    <x-zulu-time :time="$event->end" class="ml-5.5 sm:ml-0"/>
                 </div>
 
                 @if ($event->featured_fields)
