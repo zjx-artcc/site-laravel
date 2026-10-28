@@ -88,6 +88,19 @@ Notes on the schema:
 - `event_position_preset` is singular (set via `$table` on the model). Its `positions` column is JSON and cast to an array.
 - `featured_fields.name` is unique. The `event_featured_field` pivot has a unique index on `(event_id, featured_field_id)` and cascade-deletes with either parent.
 - The events table has been reshaped across many migrations; the effective columns are those in the model's `$fillable`/`$casts` above. `featured_fields` and `presetPositions` are JSON columns cast to arrays, and `start`/`end` are cast to `datetime`.
+- Event times are stored and entered in UTC (the app timezone is `UTC`, and the create/edit forms are labelled "Zulu"). They're displayed on a 24-hour clock with a `Z` suffix via the `<x-zulu-time>` component — see [Displaying times](#displaying-times).
+
+## Displaying times
+
+Use `<x-zulu-time>` (`app/View/Components/ZuluTime.php`) to show any time in 24-hour Zulu instead of hand-formatting it in a view. It converts the value to UTC, renders a `<time datetime="…Z">` element, and appends `Z`. Null times render nothing.
+
+```blade
+<x-zulu-time :time="$event->start"/>                {{-- Apr 10, 2026 18:30Z --}}
+<x-zulu-time :time="$event->start" format="H:i"/>   {{-- 18:30Z --}}
+<x-zulu-time :time="$event->end" class="ml-2"/>     {{-- extra attributes go on the <time> tag --}}
+```
+
+`time` accepts a Carbon/`DateTimeInterface` or a parseable string; `format` is any PHP date format (default `M j, Y H:i`). The event page (`events/show.blade.php`) and the events calendar (`livewire/events-calendar.blade.php`) use it.
 
 ## Flows
 
