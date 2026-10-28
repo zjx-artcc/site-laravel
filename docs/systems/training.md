@@ -100,7 +100,7 @@ erDiagram
         int score "1-5"
         longText notes
         longText instructor_notes "nullable, staff-only"
-        int location "0-2"
+        int location "0-3 (3 = No Show)"
         boolean vatusa_synced
         string vatusa_id "nullable"
         timestamps created_at_updated_at
@@ -141,6 +141,12 @@ erDiagram
   on the ticket only to users with the `training` role and is **never** sent to
   VATUSA — `SyncTrainingTickets` only forwards the student-facing `notes` column.
   Both note fields are purified when saved and again before rich-text rendering.
+- `location` is an int: `0` Classroom, `1` Live Network, `2` Sweatbox, `3` No
+  Show (`TrainingTicket::LOCATION_NO_SHOW`). Labels live in
+  `TrainingTicket::LOCATIONS`; use `locationLabel()` / `isNoShow()` rather than
+  comparing raw ints. No Show is site-only — see [VATUSA sync](#vatusa-sync-tickets).
+- `User::noShowTickets()` is a `HasMany` scoped to `location = 3`, used for the
+  per-student no-show count (works with `withCount('noShowTickets')`).
 - Uses Laravel Scout `Searchable` (student/instructor name + id, position, date)
   and Spatie `LogsActivity`.
 
@@ -171,7 +177,8 @@ erDiagram
 
 `TrainingTicketController@store` (`POST /admin/training/tickets`):
 
-1. Validates `student`, `position` (regex above), `location` (0–2),
+1. Validates `student`, `position` (regex above), `location` (0–3, where 3 is
+   No Show — all other fields stay required for a no-show),
    `sessionStart`/`sessionEnd` (`sessionEnd` must be after `sessionStart`),
    `movements`, `score` (1–5), `notes`, and optional `instructor_notes`
    (staff-only). The note fields have no application-level maximum length.
@@ -180,6 +187,20 @@ erDiagram
 4. Emails the student (bcc the instructor) via `TrainingTicketCreated`.
 5. Dispatches `SyncTrainingTickets` to push to VATUSA.
 6. Redirects to `training-tickets.show`.
+
+### No-show tracking
+
+Instructors log a missed session by creating a ticket with **Session Location →
+No Show**. Training staff see each student's no-show count (number of tickets
+with `location = 3`) in three places; the student never sees it:
+
+- **Training assignments table** (`/admin/training/assignments`) — a "No Shows"
+  column, eager-loaded via `withCount('noShowTickets')` in
+  `TrainingAssignmentController@index`.
+- **Ticket show page** — "Student No Shows (staff only)" in the staff-only card
+  (only when `$staffView` is true).
+- **Student's training ticket list** (`users.show.training-tickets`) — a
+  "No Shows" banner when the viewer is not the student themselves.
 
 > The controller's `edit()` / `update()` methods are marked **`!!!! NOT IN USE !!!!`**
 > and block edits once `vatusa_synced` is true; `destroy()` is empty.
@@ -252,7 +273,9 @@ argument. On each run it loads *all* tickets with `vatusa_synced = false` and
 POSTs each to
 `{vatusa_api_url}/v2/user/{user_id}/training/record`, sending `duration`,
 `session_date`, `position`, `movements`, `score`, `notes`, `location`, and the
-`instructor_id`. On success it sets `vatusa_synced = true` and records the
+`instructor_id`. VATUSA only accepts locations 0–2, so No Show tickets are sent
+as `location = 0` (Classroom) with `No Show` prepended to the notes — the
+no-show therefore does appear on the student's VATUSA record. On success it sets `vatusa_synced = true` and records the
 returned `vatusa_id` (falling back to a hashed placeholder id if VATUSA's
 response shape doesn't include one). Failures are logged and left unsynced for
 the next run. See [docs/vatsim-integration.md](../vatsim-integration.md).

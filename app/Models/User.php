@@ -219,6 +219,12 @@ class User extends Authenticatable
         return $this->hasMany(TrainingTicket::class, 'user_id')->orderBy('created_at', 'desc');
     }
 
+    public function noShowTickets(): HasMany
+    {
+        return $this->hasMany(TrainingTicket::class, 'user_id')
+            ->where('location', TrainingTicket::LOCATION_NO_SHOW);
+    }
+
     public function trainingTicketsAsInstructor(): HasMany
     {
         return $this->hasMany(TrainingTicket::class, 'instructor_id');

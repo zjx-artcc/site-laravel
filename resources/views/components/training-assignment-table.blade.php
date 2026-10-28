@@ -9,6 +9,7 @@
             <th>Training Requested</th>
             <th>Requested At</th>
             <th>Last Session</th>
+            <th>No Shows</th>
             <th>Status</th>
             <th>Actions</th>
         </tr>
@@ -47,6 +48,9 @@
                             {{(new DateTime($trainingAssignment->student->trainingTicketsAsStudent->first()->session_start))->format("m-d-y, h:m A")}}
                         </a>
                     @endif
+                </td>
+                <td>
+                    {{ $trainingAssignment->student->no_show_tickets_count ?? $trainingAssignment->student->noShowTickets()->count() }}
                 </td>
 
                 <td>

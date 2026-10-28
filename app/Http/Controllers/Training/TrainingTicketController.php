@@ -62,7 +62,7 @@ class TrainingTicketController extends Controller
         $validated = $request->validate([
             'student' => 'required|integer',
             'position' => ['required', 'regex:/^([A-Z]{2,3})(_([A-Z]{1,3}))?_(DEL|GND|TWR|APP|DEP|CTR)$/'],
-            'location' => 'required|integer|min:0|max:2',
+            'location' => 'required|integer|min:0|max:3',
             'sessionStart' => 'required|date',
             'sessionEnd' => 'required|date|after:sessionStart',
             'movements' => 'required|integer',
@@ -139,7 +139,9 @@ class TrainingTicketController extends Controller
         // student view as everyone else, so instructor notes about them stay hidden.
         $staffView = ! $isStudent && Auth::user()->hasRole('training');
 
-        return view('training-tickets.show', compact('trainingTicket', 'staffView'));
+        $noShowCount = $staffView ? $trainingTicket->student->noShowTickets()->count() : null;
+
+        return view('training-tickets.show', compact('trainingTicket', 'staffView', 'noShowCount'));
     }
 
     /**
@@ -165,7 +167,7 @@ class TrainingTicketController extends Controller
     {
         $validated = $request->validate([
             'position' => ['required', 'regex:/^([A-Z]{2,3})(_([A-Z]{1,3}))?_(DEL|GND|TWR|APP|DEP|CTR)$/'],
-            'location' => 'required|integer|min:0|max:2',
+            'location' => 'required|integer|min:0|max:3',
             'sessionStart' => 'required|date',
             'sessionEnd' => 'required|date|after:sessionStart',
             'movements' => 'required|integer',

@@ -97,6 +97,9 @@ Pushes locally-created training tickets up to VATUSA. Selects every
 - `POST {vatusa_api_url}/v2/user/{ticket.user_id}/training/record` with body:
   `apikey`, `instructor_id`, `session_date` (formatted `Y-m-d H:i`),
   `duration`, `position`, `movements`, `score`, `notes`, `location`.
+  VATUSA only accepts locations 0–2, so a site-only **No Show** ticket
+  (`location = 3`) is sent as `location = 0` (Classroom) with `No Show`
+  prepended to the notes.
 - On a non-successful response (or a thrown exception) it logs a warning/error
   and moves on; the ticket stays unsynced for the next run.
 - On success it reads the returned VATUSA record id. It probes several possible
