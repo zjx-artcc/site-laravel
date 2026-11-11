@@ -282,6 +282,20 @@ badge already says where each one stands, and the old "Show Inactive Requests"
 checkbox has been removed (it filtered to `active = true` by default, which left
 no way to reach such a row from the UI).
 
+The view heads the table with two counters, both computed in `@index`:
+
+| Counter | Query |
+|---------|-------|
+| `Total Requests` | open assignments with **no** `instructor_id` — the queue waiting to be claimed |
+| `Students In Training` | open assignments **with** an `instructor_id` |
+
+Both exclude `TrainingStatus::closed()`, so a completed or forfeited assignment
+counts toward neither, and ticking **Show completed / forfeited** does not move
+them. They are also deliberately independent of the search and training-type
+filters, so they read as a stable picture of the queue rather than shifting with
+whatever is typed in the search box — which does mean the numbers will not match
+the row count when a filter is applied.
+
 Rows are **grouped into one section per training type**, each with a heading row
 carrying the type's label and its row count. The group order is course
 seniority — **C1, F11 TRACON, S3, MCO TWR, S2, MCO GND, S1** — and inside each

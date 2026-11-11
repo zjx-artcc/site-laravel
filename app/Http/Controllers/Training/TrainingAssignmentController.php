@@ -79,7 +79,23 @@ class TrainingAssignmentController extends Controller
         // without it every page link is a bare ?page=N.
         $trainingAssignments = $query->paginate(20)->withQueryString();
 
-        return view('training-assignment.index', compact('trainingAssignments'));
+        // Headline counters, deliberately independent of the search/type filters
+        // so they read as a stable picture of the queue rather than shifting
+        // with whatever is typed in the search box. Both ignore completed and
+        // forfeited assignments: those are out of training either way.
+        $pendingCount = TrainingAssignment::whereNull('instructor_id')
+            ->whereNotIn('status', $closedStatuses)
+            ->count();
+
+        $inTrainingCount = TrainingAssignment::whereNotNull('instructor_id')
+            ->whereNotIn('status', $closedStatuses)
+            ->count();
+
+        return view('training-assignment.index', compact(
+            'trainingAssignments',
+            'pendingCount',
+            'inTrainingCount',
+        ));
     }
 
     public function create(Request $request)

@@ -100,6 +100,17 @@ test('ordering is applied before pagination, not to one page', function () {
     expect(strpos($html, 'users/'.$newest->user_id))->toBeFalse();
 });
 
+test('the index counts unassigned open requests', function () {
+    foreach (range(1, 3) as $i) {
+        makeAssignment('2026-01-0'.$i.' 00:00:00');
+    }
+
+    $this->actingAs(orderingStaff())
+        ->get(route('training-assignments.index'))
+        ->assertOk()
+        ->assertSeeInOrder(['Total Requests:', '3']);
+});
+
 test('inactive assignments are listed too, and counted in the total', function () {
     $active = makeAssignment('2026-01-01 00:00:00');
     $inactive = makeAssignment('2026-01-02 00:00:00');
@@ -108,6 +119,7 @@ test('inactive assignments are listed too, and counted in the total', function (
     $this->actingAs(orderingStaff())
         ->get(route('training-assignments.index'))
         ->assertOk()
+        ->assertSeeInOrder(['Total Requests:', '2'])
         ->assertSee('users/'.$active->user_id, false)
         ->assertSee('users/'.$inactive->user_id, false);
 });
@@ -120,7 +132,8 @@ test('the removed show-inactive parameter is simply ignored', function () {
     // validator now that the rule is gone.
     $this->actingAs(orderingStaff())
         ->get(route('training-assignments.index', ['showInactive' => 'on']))
-        ->assertOk();
+        ->assertOk()
+        ->assertSeeInOrder(['Total Requests:', '2']);
 });
 
 test('rows are grouped under one heading per training type, C1 first', function () {
@@ -201,7 +214,8 @@ test('the training type filter tolerates the empty "None" option', function () {
     // `where('training_type', '')` against an integer column.
     $this->actingAs(orderingStaff())
         ->get(route('training-assignments.index', ['trainingType' => '']))
-        ->assertOk();
+        ->assertOk()
+        ->assertSeeInOrder(['Total Requests:', '2']);
 });
 
 test('the training type filter narrows to one type when set', function () {
@@ -240,7 +254,8 @@ test('completed and forfeited assignments are hidden by default', function () {
         ->assertSee('users/'.$open->user_id, false)
         ->assertDontSee('users/'.$complete->user_id, false)
         ->assertDontSee('users/'.$forfeit->user_id, false)
-        ->assertDontSee('Completed / Forfeited');
+        ->assertDontSee('Completed / Forfeited')
+        ->assertSeeInOrder(['Total Requests:', '1']);
 });
 
 test('the checkbox reveals them in one section at the bottom', function () {
@@ -252,6 +267,9 @@ test('the checkbox reveals them in one section at the bottom', function () {
     $html = $this->actingAs(orderingStaff())
         ->get(route('training-assignments.index', ['showClosed' => 'on']))
         ->assertOk()
+        // The counter tracks open requests, not rows listed: 4 rows shown, but
+        // only the 2 open ones are still awaiting an instructor.
+        ->assertSeeInOrder(['Total Requests:', '2'])
         ->getContent();
 
     // One combined heading, listed after every training-type heading.
@@ -296,6 +314,73 @@ test('only COMPLETE and FORFEIT count as closed', function () {
     foreach (TrainingStatus::cases() as $case) {
         expect($case->isClosed())->toBe(in_array($case->name, $closed, true));
     }
+});
+
+function makeAssignedAssignment(TrainingStatus $status = TrainingStatus::ACTIVE): TrainingAssignment
+{
+    $instructor = User::factory()->create();
+    $instructor->assignRole('instructor');
+
+    return TrainingAssignment::create([
+        'user_id' => User::factory()->create(['rostered' => true])->id,
+        'instructor_id' => $instructor->id,
+        'training_type' => TrainingType::S1,
+        'status' => $status,
+        'active' => true,
+    ]);
+}
+
+test('Total Requests counts only students without an instructor', function () {
+    makeAssignment('2026-01-01 00:00:00');          // unassigned
+    makeAssignment('2026-01-02 00:00:00');          // unassigned
+    makeAssignedAssignment();                        // claimed
+    makeAssignedAssignment();                        // claimed
+
+    $this->actingAs(orderingStaff())
+        ->get(route('training-assignments.index'))
+        ->assertOk()
+        ->assertSeeInOrder(['Total Requests:', '2', 'Students In Training:', '2']);
+});
+
+test('Students In Training counts only claimed students', function () {
+    makeAssignment('2026-01-01 00:00:00');          // unassigned
+    makeAssignedAssignment();
+    makeAssignedAssignment();
+    makeAssignedAssignment();
+
+    $this->actingAs(orderingStaff())
+        ->get(route('training-assignments.index'))
+        ->assertOk()
+        ->assertSeeInOrder(['Total Requests:', '1', 'Students In Training:', '3']);
+});
+
+test('neither counter includes completed or forfeited assignments', function () {
+    makeAssignment('2026-01-01 00:00:00');                              // open, unassigned
+    makeAssignedAssignment();                                           // open, claimed
+    makeStatusAssignment(TrainingType::S1, TrainingStatus::COMPLETE, '2026-01-02 00:00:00');
+    makeStatusAssignment(TrainingType::S1, TrainingStatus::FORFEIT, '2026-01-03 00:00:00');
+    makeAssignedAssignment(TrainingStatus::COMPLETE);
+    makeAssignedAssignment(TrainingStatus::FORFEIT);
+
+    // Showing the closed rows must not move the counters either.
+    foreach ([[], ['showClosed' => 'on']] as $params) {
+        $this->actingAs(orderingStaff())
+            ->get(route('training-assignments.index', $params))
+            ->assertOk()
+            ->assertSeeInOrder(['Total Requests:', '1', 'Students In Training:', '1']);
+    }
+});
+
+test('the counters ignore the search and type filters', function () {
+    makeAssignment('2026-01-01 00:00:00');
+    makeAssignedAssignment();
+    makeStatusAssignment(TrainingType::C1, TrainingStatus::ACTIVE, '2026-01-02 00:00:00');
+
+    // Narrowing to C1 lists one row, but the counters still describe the queue.
+    $this->actingAs(orderingStaff())
+        ->get(route('training-assignments.index', ['trainingType' => TrainingType::C1->value]))
+        ->assertOk()
+        ->assertSeeInOrder(['Total Requests:', '2', 'Students In Training:', '1']);
 });
 
 test('striping restarts per group and is skipped for a lone row', function () {
