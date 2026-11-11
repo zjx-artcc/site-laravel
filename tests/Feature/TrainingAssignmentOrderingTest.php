@@ -52,6 +52,54 @@ function makeTypedAssignment(TrainingType $type, string $createdAt): TrainingAss
  *
  * @return array<int, string>
  */
+function headingOrder(string $html): array
+{
+    preg_match_all('/<th colspan="8"[^>]*>\s*([^<]+?)\s*<span/', $html, $matches);
+
+    return array_map('trim', $matches[1]);
+}
+
+test('the table lists assignments oldest request first', function () {
+    // Inserted in neither the wanted order nor its reverse, so passing cannot be
+    // an accident of insertion sequence or of the id-desc default.
+    $middle = makeAssignment('2026-01-05 00:00:00');
+    $oldest = makeAssignment('2026-01-01 00:00:00');
+    $newest = makeAssignment('2026-01-09 00:00:00');
+
+    $html = $this->actingAs(orderingStaff())
+        ->get(route('training-assignments.index'))
+        ->assertOk()
+        ->getContent();
+
+    $positions = array_map(
+        fn (TrainingAssignment $a) => strpos($html, 'users/'.$a->user_id),
+        [$oldest, $middle, $newest]
+    );
+
+    expect($positions)->not->toContain(false);
+    expect($positions)->toBe(array_values(collect($positions)->sort()->all()));
+});
+
+test('ordering is applied before pagination, not to one page', function () {
+    // 21 rows = two pages at 20/page. The oldest row is inserted last, so only a
+    // pre-pagination sort can pull it onto page one.
+    foreach (range(1, 20) as $i) {
+        makeAssignment('2026-02-'.str_pad((string) $i, 2, '0', STR_PAD_LEFT).' 00:00:00');
+    }
+
+    $oldest = makeAssignment('2026-01-01 00:00:00');
+    $newest = TrainingAssignment::orderByDesc('created_at')->first();
+
+    $html = $this->actingAs(orderingStaff())
+        ->get(route('training-assignments.index'))
+        ->assertOk()
+        ->getContent();
+
+    // Oldest is on page one; the newest has been pushed onto page two.
+    expect(strpos($html, 'users/'.$oldest->user_id))->not->toBeFalse();
+    expect(strpos($html, 'users/'.$newest->user_id))->toBeFalse();
+});
+
 test('inactive assignments are listed too, and counted in the total', function () {
     $active = makeAssignment('2026-01-01 00:00:00');
     $inactive = makeAssignment('2026-01-02 00:00:00');
@@ -73,6 +121,57 @@ test('the removed show-inactive parameter is simply ignored', function () {
     $this->actingAs(orderingStaff())
         ->get(route('training-assignments.index', ['showInactive' => 'on']))
         ->assertOk();
+});
+
+test('rows are grouped under one heading per training type, C1 first', function () {
+    $types = [
+        TrainingType::S1, TrainingType::C1, TrainingType::MCO_GND,
+        TrainingType::MCO_APP, TrainingType::S3, TrainingType::MCO_TWR,
+        TrainingType::S2, TrainingType::C1,
+    ];
+
+    foreach ($types as $i => $type) {
+        makeTypedAssignment($type, '2026-01-0'.($i + 1).' 00:00:00');
+    }
+
+    $html = $this->actingAs(orderingStaff())
+        ->get(route('training-assignments.index'))
+        ->assertOk()
+        ->getContent();
+
+    // Headings appear in course-seniority order, each exactly once.
+    $this->assertSame(
+        ['C1', 'F11 TRACON', 'S3', 'MCO TWR', 'S2', 'MCO GND', 'S1'],
+        headingOrder($html)
+    );
+});
+
+test('a heading reports how many rows sit under it', function () {
+    makeTypedAssignment(TrainingType::C1, '2026-01-01 00:00:00');
+    makeTypedAssignment(TrainingType::C1, '2026-01-02 00:00:00');
+    makeTypedAssignment(TrainingType::S1, '2026-01-03 00:00:00');
+
+    $html = $this->actingAs(orderingStaff())
+        ->get(route('training-assignments.index'))
+        ->assertOk()
+        ->getContent();
+
+    expect($html)->toContain('C1')
+        ->and(preg_match('/C1\s*<span[^>]*>\(2\)/', $html))->toBe(1)
+        ->and(preg_match('/S1\s*<span[^>]*>\(1\)/', $html))->toBe(1);
+});
+
+test('within a group the oldest request is listed first', function () {
+    $newer = makeTypedAssignment(TrainingType::C1, '2026-02-01 00:00:00');
+    $older = makeTypedAssignment(TrainingType::C1, '2026-01-01 00:00:00');
+
+    $html = $this->actingAs(orderingStaff())
+        ->get(route('training-assignments.index'))
+        ->assertOk()
+        ->getContent();
+
+    expect(strpos($html, 'users/'.$older->user_id))
+        ->toBeLessThan(strpos($html, 'users/'.$newer->user_id));
 });
 
 test('pagination links keep the active filters', function () {
@@ -114,4 +213,37 @@ test('the training type filter narrows to one type when set', function () {
         ->assertOk()
         ->assertSee('users/'.$c1->user_id, false)
         ->assertDontSee('users/'.$s1->user_id, false);
+});
+
+function makeStatusAssignment(TrainingType $type, TrainingStatus $status, string $createdAt): TrainingAssignment
+{
+    $assignment = TrainingAssignment::create([
+        'user_id' => User::factory()->create(['rostered' => true])->id,
+        'training_type' => $type,
+        'status' => $status,
+        'active' => true,
+    ]);
+
+    $assignment->forceFill(['created_at' => $createdAt])->saveQuietly();
+
+    return $assignment;
+}
+
+test('striping restarts per group and is skipped for a lone row', function () {
+    // C1 gets three rows, MCO GND exactly one.
+    makeStatusAssignment(TrainingType::C1, TrainingStatus::ACTIVE, '2026-01-01 00:00:00');
+    makeStatusAssignment(TrainingType::C1, TrainingStatus::ACTIVE, '2026-01-02 00:00:00');
+    makeStatusAssignment(TrainingType::C1, TrainingStatus::ACTIVE, '2026-01-03 00:00:00');
+    makeStatusAssignment(TrainingType::MCO_GND, TrainingStatus::ACTIVE, '2026-01-04 00:00:00');
+
+    $html = $this->actingAs(orderingStaff())
+        ->get(route('training-assignments.index'))
+        ->assertOk()
+        ->getContent();
+
+    // Only the 2nd row of the three-row group is striped; the lone row is not.
+    expect(substr_count($html, '<tr class="bg-base-200">'))->toBe(1);
+
+    // Sanity: daisyUI's own zebra class is not doing the striping.
+    expect($html)->not->toContain('table-zebra');
 });

@@ -264,6 +264,32 @@ badge already says where each one stands, and the old "Show Inactive Requests"
 checkbox has been removed (it filtered to `active = true` by default, which left
 no way to reach such a row from the UI).
 
+Rows are **grouped into one section per training type**, each with a heading row
+carrying the type's label and its row count. The group order is course
+seniority — **C1, F11 TRACON, S3, MCO TWR, S2, MCO GND, S1** — and inside each
+group the oldest request is listed first, so the longest-waiting student tops
+each section.
+
+Ordering is two keys in `@index`: course seniority, then `created_at`
+ascending. The seniority key is a `CASE` expression mapping `training_type` to a
+rank: the column stores the enum's backing value, which is
+only the order cases were added (S1=1 … MCO_APP=7), so seniority has to be
+mapped in the query. It is applied to the Scout builder, which the
+collection/database engines pass through to the underlying Eloquent query — so
+it sorts the whole result set before pagination, not one page after the fact.
+Swapping to a hosted search engine (Algolia/Meilisearch) would need this
+expressed as an engine-side sort instead.
+
+`TrainingAssignmentTable` (`app/View/Components/TrainingAssignmentTable.php`)
+then does the grouping with a `groupBy` on the current page's items, so the
+Blade file stays a pure template. Grouping is **per page**: a type that spans
+a page boundary gets its heading repeated at the top of the next page.
+
+Striping is applied per group in the Blade file rather than with daisyUI's
+`table-zebra`: that class alternates on `nth-child` across the whole `tbody`, so
+the heading rows throw its rhythm off, and it offers no way to skip a group. A
+group holding a single row is left unstriped.
+
 The search form filters on a free-text `search` term (via Scout) and an optional
 `trainingType`. The type guard uses `blank()`, not `is_null()` — the form's
 "None" option submits an empty string, and relying on the global

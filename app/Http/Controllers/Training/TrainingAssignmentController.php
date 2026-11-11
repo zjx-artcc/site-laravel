@@ -12,6 +12,7 @@ use App\Models\Staff;
 use App\Models\TrainingAssignment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
@@ -33,6 +34,23 @@ class TrainingAssignmentController extends Controller
         if (! blank($validated['trainingType'] ?? null)) {
             $query->where('training_type', $validated['trainingType']);
         }
+
+        // The table groups rows by training type, so sort by course seniority
+        // first (the column holds the enum's backing value, which is just the
+        // order cases were added, so the ranking has to be mapped here), then
+        // oldest request first inside each group. This goes through the Scout
+        // builder so it applies before pagination rather than to one page of
+        // already-sliced results.
+        $query->orderBy(DB::raw('CASE training_type
+                WHEN 4 THEN 0   -- C1
+                WHEN 7 THEN 1   -- F11 TRACON
+                WHEN 3 THEN 2   -- S3
+                WHEN 6 THEN 3   -- MCO TWR
+                WHEN 2 THEN 4   -- S2
+                WHEN 5 THEN 5   -- MCO GND
+                WHEN 1 THEN 6   -- S1
+            END'), 'asc')
+            ->orderBy('created_at', 'asc');
 
         // withQueryString() so paging keeps the search term and type filter;
         // without it every page link is a bare ?page=N.

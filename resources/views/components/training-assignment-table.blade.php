@@ -1,6 +1,6 @@
 @unless(sizeof($trainingAssignments) == 0)
     <div class='overflow-x-auto'>
-    <table class='table table-zebra table-md border-2 border-base-300 mt-5 w-full'>
+    <table class='table table-md border-2 border-base-300 mt-5 w-full'>
         <thead>
         <tr>
             <th>Student CID</th>
@@ -14,8 +14,27 @@
         </tr>
         </thead>
         <tbody>
-        @foreach ($trainingAssignments as $trainingAssignment)
-            <tr>
+        @foreach ($groups as $group)
+            {{-- One heading per training type. The rows are already ordered by
+                 course seniority, so the headings come out C1 first, S1 last.
+                 base-300 is the most contrasted step against the table in both
+                 themes — lighter than base-100 in dark mode, darker in light. --}}
+            <tr class="bg-base-300">
+                <th colspan="8" class="text-sm font-semibold">
+                    {{ $group->first()->training_type->mapToString() }}
+                    <span class="font-normal text-base-content/60">({{ $group->count() }})</span>
+                </th>
+            </tr>
+
+            {{-- Striping is done here rather than with daisyUI's `table-zebra`
+                 for two reasons: table-zebra alternates on nth-child across the
+                 whole tbody, so the heading rows throw its rhythm off and a
+                 group's first row is striped or not depending on how many rows
+                 preceded it; and it gives no way to skip a group. Striping
+                 restarts per group, and a group with a single row is left
+                 unstriped so one lone student does not read as a highlight. --}}
+            @foreach ($group as $trainingAssignment)
+            <tr @class(['bg-base-200' => $group->count() > 1 && $loop->even])>
                 <td>
                     <a href="{{route('users.show', ['user' => $trainingAssignment->user_id])}}">
                         {{$trainingAssignment->student->id}}
@@ -123,6 +142,7 @@
                     </div>
                 </td>
             </tr>
+            @endforeach
         @endforeach
         </tbody>
     </table>
