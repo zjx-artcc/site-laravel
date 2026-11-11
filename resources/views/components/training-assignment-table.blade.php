@@ -58,18 +58,28 @@
                             top: 0,
                             left: 0,
                             openMenu() {
+                                // getBoundingClientRect() is already viewport-relative,
+                                // which is the coordinate space `fixed` uses — adding a
+                                // scroll offset here would push the menu down the page
+                                // by the scroll distance. The 160 right-aligns the
+                                // w-40 menu with the trigger's right edge.
                                 const rect = $refs.trigger.getBoundingClientRect();
-                                this.top = rect.bottom + window.scrollY;
-                                this.left = rect.right + window.scrollX - 160;
+                                this.top = rect.bottom + 4;
+                                this.left = rect.right - 160;
                                 this.open = true;
                             },
                         }">
                         <div x-ref="trigger" tabindex="0" role="button" class="btn btn-sm" @click="open ? (open = false) : openMenu()">Actions</div>
 
                         <template x-teleport="body">
+                            {{-- Closed on scroll/resize rather than re-measured: the
+                                 coordinates are a snapshot, so a moving page would
+                                 leave the menu stranded beside nothing. --}}
                             <ul x-show="open" x-cloak
                                 @click.outside="open = false"
                                 @click="open = false"
+                                @scroll.window="open = false"
+                                @resize.window="open = false"
                                 :style="`top: ${top}px; left: ${left}px;`"
                                 class="fixed text-base-content menu bg-base-100 rounded-box z-50 w-40 p-2 shadow-sm border border-base-300 min-w-max">
                                 @haspermission('claim students')

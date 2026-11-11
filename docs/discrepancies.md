@@ -108,6 +108,7 @@ These are functional defects found while documenting. Grouped by system. (Traini
 - **9.6** `RosterController` has a typo'd local variable `$certificaionFacilities` (passed correctly to the view; cosmetic).
 - **9.7** `Staff::fromFacilityInfoDTO` sets `title_long` to "Training Administrator" for both `TA` and `ATA` (ATA should likely be "Assistant Training Administrator").
 - **9.8** `routes/web.php` has a `TODO: make store` on the `training-assignment/create` POST route (a `create` action used for a store operation), and `training-assignments.destroy` takes the id via request payload rather than a route parameter — inconsistent with the other resourceful routes.
+- **9.9** (Fixed on the `training-page-revamp` branch.) The Actions menu in `training-assignment-table.blade.php` added `window.scrollY`/`window.scrollX` to `getBoundingClientRect()` coordinates while positioning with `fixed`, double-counting the scroll offset so the menu only landed correctly at scroll position 0.
 
 ---
 

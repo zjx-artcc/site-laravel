@@ -45,3 +45,22 @@ test('a users own training assignments show the badge too', function () {
         ->assertSee('badge-success', false)
         ->assertSee('Active');
 });
+
+test('the row menus are positioned in viewport coordinates, not document ones', function () {
+    $student = User::factory()->create(['rostered' => true]);
+    trainingAssignmentWithStatus($student, TrainingStatus::ACTIVE);
+
+    $staff = User::factory()->create();
+    $staff->assignRole('training');
+    $staff->givePermissionTo('view dashboard');
+
+    // Both menus in this table position with `fixed`, whose coordinate space is
+    // already the one getBoundingClientRect() reports. Adding a scroll offset
+    // double-counts it and strands the menu down the page.
+    $this->actingAs($staff)
+        ->get(route('training-assignments.index'))
+        ->assertOk()
+        ->assertSee('getBoundingClientRect', false)
+        ->assertDontSee('window.scrollY', false)
+        ->assertDontSee('window.scrollX', false);
+});
