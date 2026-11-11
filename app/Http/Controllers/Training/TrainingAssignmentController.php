@@ -35,12 +35,35 @@ class TrainingAssignmentController extends Controller
             $query->where('training_type', $validated['trainingType']);
         }
 
-        // The table groups rows by training type, so sort by course seniority
-        // first (the column holds the enum's backing value, which is just the
-        // order cases were added, so the ranking has to be mapped here), then
-        // oldest request first inside each group. This goes through the Scout
-        // builder so it applies before pagination rather than to one page of
-        // already-sliced results.
+        // Completed and forfeited assignments are out of training, so they are
+        // hidden unless asked for. Inactive-but-open ones still show: the status
+        // badge says where each stands, and hiding those left no way to reach
+        // them from the UI at all.
+        $showClosed = $request->boolean('showClosed');
+
+        $closedStatuses = array_map(
+            fn (TrainingStatus $status) => $status->value,
+            TrainingStatus::closed()
+        );
+
+        if (! $showClosed) {
+            $query->whereNotIn('status', $closedStatuses);
+        }
+
+        // Ordering, all of it applied to the Scout builder so it happens before
+        // pagination rather than to one page of already-sliced results:
+        //
+        //   1. closed rows last, so they land in the single
+        //      "Completed / Forfeited" section the table renders at the bottom;
+        //   2. then course seniority, which the table groups on (the column
+        //      holds the enum's backing value — just the order cases were added
+        //      — so the ranking has to be mapped here);
+        //   3. then oldest request first inside each group.
+        $query->orderBy(DB::raw(sprintf(
+            'CASE WHEN status IN (%s) THEN 1 ELSE 0 END',
+            implode(', ', $closedStatuses)
+        )), 'asc');
+
         $query->orderBy(DB::raw('CASE training_type
                 WHEN 4 THEN 0   -- C1
                 WHEN 7 THEN 1   -- F11 TRACON

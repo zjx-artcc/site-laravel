@@ -28,8 +28,9 @@ test('the training assignments table renders the status as a colored badge', fun
     $staff->assignRole('training');
     $staff->givePermissionTo('view dashboard');
 
+    // Forfeit is a closed status, so it only appears with showClosed.
     $this->actingAs($staff)
-        ->get(route('training-assignments.index'))
+        ->get(route('training-assignments.index', ['showClosed' => 'on']))
         ->assertOk()
         ->assertSee('badge-error', false)
         ->assertSee('Forfeit');

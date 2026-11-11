@@ -21,7 +21,11 @@
                  themes — lighter than base-100 in dark mode, darker in light. --}}
             <tr class="bg-base-300">
                 <th colspan="8" class="text-sm font-semibold">
-                    {{ $group->first()->training_type->mapToString() }}
+                    @if($group->first()->status->isClosed())
+                        Completed / Forfeited
+                    @else
+                        {{ $group->first()->training_type->mapToString() }}
+                    @endif
                     <span class="font-normal text-base-content/60">({{ $group->count() }})</span>
                 </th>
             </tr>

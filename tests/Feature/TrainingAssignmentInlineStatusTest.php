@@ -168,3 +168,52 @@ test('the status menu is wired to reposition itself inside the viewport', functi
         ->toContain('window.innerWidth')
         ->toContain('window.innerHeight');
 });
+
+test('crossing the open/closed line asks the page to reload', function () {
+    $assignment = inlineStatusAssignment(TrainingStatus::ACTIVE);
+    $this->actingAs(User::factory()->create()->assignRole('instructor'));
+
+    // Active -> Complete: the row leaves its training-type group.
+    Livewire::test(TrainingAssignmentStatus::class, ['assignment' => $assignment])
+        ->call('setStatus', TrainingStatus::COMPLETE->value)
+        ->assertDispatched('training-assignment-moved');
+
+    // Complete -> Active: and back again.
+    Livewire::test(TrainingAssignmentStatus::class, ['assignment' => $assignment->fresh()])
+        ->call('setStatus', TrainingStatus::ACTIVE->value)
+        ->assertDispatched('training-assignment-moved');
+});
+
+test('moving between two open statuses does not reload', function () {
+    $assignment = inlineStatusAssignment(TrainingStatus::ACTIVE);
+    $this->actingAs(User::factory()->create()->assignRole('instructor'));
+
+    Livewire::test(TrainingAssignmentStatus::class, ['assignment' => $assignment])
+        ->call('setStatus', TrainingStatus::MOCK->value)
+        ->assertNotDispatched('training-assignment-moved');
+
+    expect($assignment->fresh()->status)->toBe(TrainingStatus::MOCK);
+});
+
+test('moving between the two closed statuses does not reload', function () {
+    $assignment = inlineStatusAssignment(TrainingStatus::COMPLETE);
+    $this->actingAs(User::factory()->create()->assignRole('instructor'));
+
+    // Both sit in the same section, so nothing moves.
+    Livewire::test(TrainingAssignmentStatus::class, ['assignment' => $assignment])
+        ->call('setStatus', TrainingStatus::FORFEIT->value)
+        ->assertNotDispatched('training-assignment-moved');
+});
+
+test('re-picking the same status dispatches nothing and writes nothing', function () {
+    $assignment = inlineStatusAssignment(TrainingStatus::ACTIVE);
+    $this->actingAs(User::factory()->create()->assignRole('instructor'));
+
+    $before = $assignment->updated_at;
+
+    Livewire::test(TrainingAssignmentStatus::class, ['assignment' => $assignment])
+        ->call('setStatus', TrainingStatus::ACTIVE->value)
+        ->assertNotDispatched('training-assignment-moved');
+
+    expect($assignment->fresh()->updated_at->eq($before))->toBeTrue();
+});

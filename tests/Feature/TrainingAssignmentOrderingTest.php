@@ -229,6 +229,75 @@ function makeStatusAssignment(TrainingType $type, TrainingStatus $status, string
     return $assignment;
 }
 
+test('completed and forfeited assignments are hidden by default', function () {
+    $open = makeStatusAssignment(TrainingType::C1, TrainingStatus::ACTIVE, '2026-01-01 00:00:00');
+    $complete = makeStatusAssignment(TrainingType::C1, TrainingStatus::COMPLETE, '2026-01-02 00:00:00');
+    $forfeit = makeStatusAssignment(TrainingType::S1, TrainingStatus::FORFEIT, '2026-01-03 00:00:00');
+
+    $this->actingAs(orderingStaff())
+        ->get(route('training-assignments.index'))
+        ->assertOk()
+        ->assertSee('users/'.$open->user_id, false)
+        ->assertDontSee('users/'.$complete->user_id, false)
+        ->assertDontSee('users/'.$forfeit->user_id, false)
+        ->assertDontSee('Completed / Forfeited');
+});
+
+test('the checkbox reveals them in one section at the bottom', function () {
+    $open = makeStatusAssignment(TrainingType::C1, TrainingStatus::ACTIVE, '2026-01-01 00:00:00');
+    $s1 = makeStatusAssignment(TrainingType::S1, TrainingStatus::ACTIVE, '2026-01-02 00:00:00');
+    $complete = makeStatusAssignment(TrainingType::C1, TrainingStatus::COMPLETE, '2026-01-03 00:00:00');
+    $forfeit = makeStatusAssignment(TrainingType::S1, TrainingStatus::FORFEIT, '2026-01-04 00:00:00');
+
+    $html = $this->actingAs(orderingStaff())
+        ->get(route('training-assignments.index', ['showClosed' => 'on']))
+        ->assertOk()
+        ->getContent();
+
+    // One combined heading, listed after every training-type heading.
+    expect(headingOrder($html))->toBe(['C1', 'S1', 'Completed / Forfeited']);
+
+    // ...and the closed rows sit under it, below the open ones.
+    expect(strpos($html, 'users/'.$open->user_id))
+        ->toBeLessThan(strpos($html, 'users/'.$s1->user_id));
+    expect(strpos($html, 'users/'.$s1->user_id))
+        ->toBeLessThan(strpos($html, 'users/'.$complete->user_id));
+    expect(strpos($html, 'users/'.$forfeit->user_id))->not->toBeFalse();
+});
+
+test('a closed assignment is not split out of its training type group when open', function () {
+    // A Complete C1 must not create a second "C1" heading; it belongs to the
+    // closed section regardless of its type.
+    makeStatusAssignment(TrainingType::C1, TrainingStatus::ACTIVE, '2026-01-01 00:00:00');
+    makeStatusAssignment(TrainingType::C1, TrainingStatus::COMPLETE, '2026-01-02 00:00:00');
+
+    $html = $this->actingAs(orderingStaff())
+        ->get(route('training-assignments.index', ['showClosed' => 'on']))
+        ->assertOk()
+        ->getContent();
+
+    expect(headingOrder($html))->toBe(['C1', 'Completed / Forfeited']);
+});
+
+test('the closed filter survives pagination', function () {
+    $paginator = $this->actingAs(orderingStaff())
+        ->get(route('training-assignments.index', ['showClosed' => 'on']))
+        ->assertOk()
+        ->viewData('trainingAssignments');
+
+    expect($paginator->url(2))->toContain('showClosed=on');
+});
+
+test('only COMPLETE and FORFEIT count as closed', function () {
+    $closed = array_map(fn (TrainingStatus $s) => $s->name, TrainingStatus::closed());
+
+    expect($closed)->toBe(['COMPLETE', 'FORFEIT']);
+
+    foreach (TrainingStatus::cases() as $case) {
+        expect($case->isClosed())->toBe(in_array($case->name, $closed, true));
+    }
+});
+
 test('striping restarts per group and is skipped for a lone row', function () {
     // C1 gets three rows, MCO GND exactly one.
     makeStatusAssignment(TrainingType::C1, TrainingStatus::ACTIVE, '2026-01-01 00:00:00');

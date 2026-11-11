@@ -74,6 +74,11 @@ The `MCO_*` cases are the Orlando (KMCO) local endorsements. Note that
 | `COMPLETE` | 5 | `Complete` | `badge-primary` (blue) |
 | `FORFEIT` | 6 | `Forfeit` | `badge-error` (red) |
 
+`closed()` returns the statuses that take an assignment out of active training
+(`COMPLETE`, `FORFEIT`), and `isClosed()` tests one case against it. The staff
+queue hides those rows unless asked for, sorts them below every training-type
+group, and lists them under one `Completed / Forfeited` heading.
+
 `badgeClass()` returns the daisyUI classes (plus the matching `text-*-content`)
 used to render a status as a filled chip, matching how certifications are shown
 on a user profile. The palette reads as a progression — green while training is
@@ -243,7 +248,15 @@ record (there is a `TODO: make store` note on the route):
   is recorded in the activity log like any other assignment update. It changes
   `status` only: setting `FORFEIT` here does *not* also clear `active`, which is
   what `@destroy` does. Re-picking the status the assignment already has is a
-  no-op (no write, no log entry).
+  no-op (no write, no log entry, no event).
+
+  When the new status crosses the open/closed line (to or from `COMPLETE`/
+  `FORFEIT`) the component dispatches a `training-assignment-moved` browser
+  event and an Alpine listener reloads the page. That is the only case that
+  needs it: the row's section, the group counts and the total are all rendered
+  by the server outside this component, and a status change can only move a row
+  across that line — grouping is by training type, which a status change never
+  touches. The four open statuses just update the badge in place.
 
   The menu is `position: fixed` with coordinates measured by Alpine, because the
   table lives in an `overflow-x-auto` wrapper that would clip a normally
@@ -259,6 +272,11 @@ Scout and hands the results to the `training-assignment-table` Blade component.
 nothing references either, and the view still renders a `NOT IMPL. YET` cell and
 reads a `trainee_id` column the model does not have.
 
+Completed and forfeited assignments (`TrainingStatus::closed()`) are hidden by
+default and revealed by the **Show completed / forfeited** checkbox, which
+submits on change and lists them in a single `Completed / Forfeited` section
+below every training-type group.
+
 Everything else is always listed, inactive-but-open rows included — the status
 badge already says where each one stands, and the old "Show Inactive Requests"
 checkbox has been removed (it filtered to `active = true` by default, which left
@@ -270,9 +288,9 @@ seniority — **C1, F11 TRACON, S3, MCO TWR, S2, MCO GND, S1** — and inside ea
 group the oldest request is listed first, so the longest-waiting student tops
 each section.
 
-Ordering is two keys in `@index`: course seniority, then `created_at`
-ascending. The seniority key is a `CASE` expression mapping `training_type` to a
-rank: the column stores the enum's backing value, which is
+Ordering is three keys in `@index`: closed rows last (a `CASE WHEN status IN
+(...)`), then course seniority, then `created_at` ascending. The seniority key
+is a `CASE` expression mapping `training_type` to a rank: the column stores the enum's backing value, which is
 only the order cases were added (S1=1 … MCO_APP=7), so seniority has to be
 mapped in the query. It is applied to the Scout builder, which the
 collection/database engines pass through to the underlying Eloquent query — so
@@ -282,7 +300,9 @@ expressed as an engine-side sort instead.
 
 `TrainingAssignmentTable` (`app/View/Components/TrainingAssignmentTable.php`)
 then does the grouping with a `groupBy` on the current page's items, so the
-Blade file stays a pure template. Grouping is **per page**: a type that spans
+Blade file stays a pure template. Closed rows all share the `CLOSED_GROUP`
+key, which is what collapses them into one section rather than splitting them
+across the type groups. Grouping is **per page**: a type that spans
 a page boundary gets its heading repeated at the top of the next page.
 
 Striping is applied per group in the Blade file rather than with daisyUI's

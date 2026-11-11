@@ -9,6 +9,9 @@ use Illuminate\View\Component;
 
 class TrainingAssignmentTable extends Component
 {
+    /** Grouping key shared by every completed/forfeited row. */
+    public const CLOSED_GROUP = 'closed';
+
     /**
      * The rows grouped into one section per training type.
      */
@@ -19,12 +22,18 @@ class TrainingAssignmentTable extends Component
      */
     public function __construct(public mixed $trainingAssignments)
     {
-        // The query already orders by course seniority then request age, so
-        // grouping here preserves that order and keeps the Blade file a pure
-        // template. Grouping is per page: a type spanning a page boundary gets
-        // its heading repeated on the next page, which is what we want.
+        // The query already orders closed-last, then by course seniority, then
+        // by request age, so grouping here preserves that order and keeps the
+        // Blade file a pure template. Grouping is per page: a type spanning a
+        // page boundary gets its heading repeated on the next page, which is
+        // what we want.
+        //
+        // Completed and forfeited rows share one key, so they collapse into a
+        // single section instead of being split across the type groups.
         $this->groups = collect($trainingAssignments->items())
-            ->groupBy(fn ($assignment) => $assignment->training_type->value);
+            ->groupBy(fn ($assignment) => $assignment->status->isClosed()
+                ? self::CLOSED_GROUP
+                : $assignment->training_type->value);
     }
 
     /**

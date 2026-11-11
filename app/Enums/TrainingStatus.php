@@ -24,6 +24,24 @@ enum TrainingStatus: int
     }
 
     /**
+     * Statuses that take an assignment out of active training.
+     *
+     * These are hidden from the staff queue by default and listed in their own
+     * section at the bottom when "Show completed / forfeited" is ticked.
+     *
+     * @return array<int, self>
+     */
+    public static function closed(): array
+    {
+        return [self::COMPLETE, self::FORFEIT];
+    }
+
+    public function isClosed(): bool
+    {
+        return in_array($this, self::closed(), true);
+    }
+
+    /**
      * daisyUI badge classes used to render this status as a colored chip.
      *
      * The palette reads as a progression: green while training is live, cool

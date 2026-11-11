@@ -48,10 +48,23 @@ class TrainingAssignmentStatus extends Component
         ]);
 
         $new = TrainingStatus::from($status);
+        $was = $this->assignment->status;
 
-        if ($new !== $this->assignment->status) {
-            $this->assignment->status = $new;
-            $this->assignment->save();
+        if ($new === $was) {
+            return;
+        }
+
+        $this->assignment->status = $new;
+        $this->assignment->save();
+
+        // A status change can only move a row across the open/closed line: the
+        // table groups by training type (untouched here) and orders by date, so
+        // the four open statuses just need the badge they already re-rendered.
+        // Crossing the line does change the row's section, the group counts and
+        // the total — all server-rendered outside this component — so the page
+        // has to come back from the server.
+        if ($new->isClosed() !== $was->isClosed()) {
+            $this->dispatch('training-assignment-moved');
         }
     }
 

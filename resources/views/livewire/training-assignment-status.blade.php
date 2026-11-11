@@ -48,6 +48,9 @@
         },
     }"
     @keydown.escape="open = false"
+    {{-- Only fired when the row changes section (see setStatus); the four open
+         statuses update in place without a round trip. --}}
+    @training-assignment-moved.window="window.location.reload()"
     class="inline-block"
 >
     <button
