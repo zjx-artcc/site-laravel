@@ -50,7 +50,7 @@
                 </td>
 
                 <td>
-                    {{  $trainingAssignment->status->label() }}
+                    <x-training-assignment-status-label :status="$trainingAssignment->status"/>
                 </td>
                 <td>
                     <div x-data="{

@@ -65,14 +65,31 @@ The `MCO_*` cases are the Orlando (KMCO) local endorsements. Note that
 
 ### Enum: `TrainingStatus` (int-backed)
 
-| Case | Value | `label()` |
-|------|-------|-----------|
-| `ACTIVE` | 1 | `Active` |
-| `SOLO` | 2 | `Solo Cert` |
-| `MOCK` | 3 | `Mock OTS` |
-| `CHECKOUT` | 4 | `Checkout` |
-| `COMPLETE` | 5 | `Complete` |
-| `FORFEIT` | 6 | `Forfeit` |
+| Case | Value | `label()` | `badgeClass()` |
+|------|-------|-----------|----------------|
+| `ACTIVE` | 1 | `Active` | `badge-success` (green) |
+| `SOLO` | 2 | `Solo Cert` | `badge-info` (cyan) |
+| `MOCK` | 3 | `Mock OTS` | `badge-warning` (amber) |
+| `CHECKOUT` | 4 | `Checkout` | `badge-secondary` (purple) |
+| `COMPLETE` | 5 | `Complete` | `badge-primary` (blue) |
+| `FORFEIT` | 6 | `Forfeit` | `badge-error` (red) |
+
+`badgeClass()` returns the daisyUI classes (plus the matching `text-*-content`)
+used to render a status as a filled chip, matching how certifications are shown
+on a user profile. The palette reads as a progression — green while training is
+live, cool tones through the intermediate stages, brand blue once complete, red
+on forfeit — and green is reserved for `ACTIVE` so it never competes with
+`COMPLETE`.
+
+Render a status through the `<x-training-assignment-status-label>` component
+rather than printing `label()` directly; it is used by both the staff training
+assignments table (`components/training-assignment-table.blade.php`) and the
+profile table (`components/training-assignments-profile-table.blade.php`).
+
+Tailwind picks these class names up out of `app/Enums/TrainingStatus.php` via its
+automatic source detection, so a new case needs no `@source` change in
+`resources/css/app.css` — but it does need a real class string in the `match`,
+not an interpolated one.
 
 ---
 
