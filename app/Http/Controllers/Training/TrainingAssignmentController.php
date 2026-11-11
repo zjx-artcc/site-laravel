@@ -22,22 +22,21 @@ class TrainingAssignmentController extends Controller
         $validated = $request->validate([
             'search' => 'nullable|string',
             'trainingType' => 'sometimes|min:0',
-            'showInactive' => 'nullable|sometimes:on',
         ]);
 
-        $query = null;
+        $query = TrainingAssignment::search($request->input('search'));
 
-        if (is_null($request->input('trainingType'))) {
-            $query = TrainingAssignment::search($request->input('search'));
-        } else {
-            $query = TrainingAssignment::search($request->input('search'))->where('training_type', $validated['trainingType']);
+        // blank() rather than is_null(): the "None" option submits an empty
+        // string, and only the ConvertEmptyStringsToNull middleware makes that
+        // arrive as null. Without this the filter would run
+        // `where('training_type', '')` against an integer column.
+        if (! blank($validated['trainingType'] ?? null)) {
+            $query->where('training_type', $validated['trainingType']);
         }
 
-        if (! $request->boolean('showInactive')) {
-            $query->where('active', true);
-        }
-
-        $trainingAssignments = $query->paginate(20);
+        // withQueryString() so paging keeps the search term and type filter;
+        // without it every page link is a bare ?page=N.
+        $trainingAssignments = $query->paginate(20)->withQueryString();
 
         return view('training-assignment.index', compact('trainingAssignments'));
     }

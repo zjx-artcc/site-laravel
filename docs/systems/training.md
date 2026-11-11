@@ -259,6 +259,19 @@ Scout and hands the results to the `training-assignment-table` Blade component.
 nothing references either, and the view still renders a `NOT IMPL. YET` cell and
 reads a `trainee_id` column the model does not have.
 
+Everything else is always listed, inactive-but-open rows included — the status
+badge already says where each one stands, and the old "Show Inactive Requests"
+checkbox has been removed (it filtered to `active = true` by default, which left
+no way to reach such a row from the UI).
+
+The search form filters on a free-text `search` term (via Scout) and an optional
+`trainingType`. The type guard uses `blank()`, not `is_null()` — the form's
+"None" option submits an empty string, and relying on the global
+`ConvertEmptyStringsToNull` middleware to turn that into null would otherwise
+leave the filter one middleware change away from `where('training_type', '')`
+against an integer column. The paginator is built with `withQueryString()` so
+paging keeps both filters (matching `AuditLogController`).
+
 ### Issue a solo certification
 
 `SoloCertController@store` (`POST /admin/training/solo-certs`):
