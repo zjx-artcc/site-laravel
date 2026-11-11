@@ -87,6 +87,7 @@ These are functional defects found while documenting. Grouped by system. (Traini
 - **7.9 Commented-out Socialite registration.** `app/Providers/AppServiceProvider.php` has an older `Socialite::extend('vatsim', …)` block commented above the active one. Delete it.
 - **7.10 Test placeholders / starter stubs.** `tests/Pest.php` still defines a stub `function something()`; `tests/Unit/ExampleTest.php` and `tests/Feature/ExampleTest.php` are starter placeholders. Remove.
 - **7.11 Unused event view.** `resources/views/events/manage.blade.php` appears unused — `EventController::manage()` returns `manage-events.index`. (Events WIP.)
+- **7.12 `TrainingAssignmentsTable` Livewire component is unused and broken.** `app/Livewire/TrainingAssignmentsTable.php` and `resources/views/livewire/training-assignments-table.blade.php` are referenced from nowhere; the staff list is server-rendered by `TrainingAssignmentController@index` + the `training-assignment-table` Blade component. The dead view also renders a literal `NOT IMPL. YET` in the Last Session cell and reads `trainee_id` / `trainee`, which do not exist on `TrainingAssignment` (the column is `user_id`, the relation `student`), so it would error if it were ever mounted. **Fix:** delete both files.
 
 ---
 

@@ -232,9 +232,32 @@ record (there is a `TODO: make store` note on the route):
   `deactivate training assignments` permission; sets `active = false` and
   `status = 'withdrawn'`.
 
-`TrainingAssignmentsTable` (`app/Livewire/TrainingAssignmentsTable.php`) is a
-Livewire component that lists assignments with a `includeInactive` toggle
-(active-only by default), paginated 25/page, newest first.
+- **Change status inline** — no route: the Status cell of the staff table is the
+  `TrainingAssignmentStatus` Livewire component
+  (`app/Livewire/TrainingAssignmentStatus.php`). Clicking the status badge opens
+  a menu of statuses; picking one saves immediately via `setStatus()`. Requires
+  `manage students` (re-checked in `mount()` and in `save()`, since a Livewire
+  action request does not re-run the route middleware); everyone else sees a
+  plain, non-clickable badge. Unlike `@update` it **never emails the student** —
+  a one-click cell should not be able to send mail by accident — but the change
+  is recorded in the activity log like any other assignment update. It changes
+  `status` only: setting `FORFEIT` here does *not* also clear `active`, which is
+  what `@destroy` does. Re-picking the status the assignment already has is a
+  no-op (no write, no log entry).
+
+  The menu is `position: fixed` with coordinates measured by Alpine, because the
+  table lives in an `overflow-x-auto` wrapper that would clip a normally
+  positioned dropdown. It is deliberately *not* teleported to `<body>` the way
+  the neighbouring Actions menu is — a teleported element sits outside the
+  Livewire component root, where `wire:` bindings stop working. On open it nudges
+  itself back inside the viewport, flipping above the badge when there is no room
+  below.
+
+The staff list itself is server-rendered: `@index` paginates 20/page through
+Scout and hands the results to the `training-assignment-table` Blade component.
+`app/Livewire/TrainingAssignmentsTable.php` and its view are **dead code** —
+nothing references either, and the view still renders a `NOT IMPL. YET` cell and
+reads a `trainee_id` column the model does not have.
 
 ### Issue a solo certification
 
@@ -344,7 +367,9 @@ All four are queued (`ShouldQueue`). The VATUSA jobs read
 | `app/Models/TrainingTicket.php` | Ticket model, `duration` attribute, sync flags |
 | `app/Models/TrainingAssignment.php` | Assignment model, status/type casts |
 | `app/Models/SoloCert.php` | Solo cert model, 30-day expiry accessors |
-| `app/Livewire/TrainingAssignmentsTable.php` | Assignment list with active/inactive toggle |
+| `app/View/Components/TrainingAssignmentTable.php` | Staff assignment list (Blade, server-rendered) |
+| `app/Livewire/TrainingAssignmentStatus.php` | Click-to-change status cell (`manage students`) |
+| `app/Livewire/TrainingAssignmentsTable.php` | Dead code — unreferenced, superseded by the Blade table |
 | `app/Enums/TrainingType.php` | Course types (incl. `MCO_*`) |
 | `app/Enums/TrainingStatus.php` | Assignment lifecycle statuses |
 | `app/Jobs/SyncTrainingTickets.php` | Batch push tickets → VATUSA |

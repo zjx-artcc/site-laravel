@@ -50,7 +50,12 @@
                 </td>
 
                 <td>
-                    <x-training-assignment-status-label :status="$trainingAssignment->status"/>
+                    {{-- Editable in place for instructors; a plain badge for everyone else. --}}
+                    @if(auth()->user()?->hasPermissionTo('manage students'))
+                        @livewire('training-assignment-status', ['assignment' => $trainingAssignment], key($trainingAssignment->id))
+                    @else
+                        <x-training-assignment-status-label :status="$trainingAssignment->status"/>
+                    @endif
                 </td>
                 <td>
                     <div x-data="{
