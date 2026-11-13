@@ -17,6 +17,19 @@ class TrainingTicket extends Model
     use LogsActivity;
     use Searchable;
 
+    /**
+     * Site-only location for a session the student didn't attend. VATUSA only
+     * accepts 0-2, so these are synced as Classroom with a "No Show" note.
+     */
+    public const LOCATION_NO_SHOW = 3;
+
+    public const LOCATIONS = [
+        0 => 'Classroom',
+        1 => 'Live Network',
+        2 => 'Sweatbox',
+        self::LOCATION_NO_SHOW => 'No Show',
+    ];
+
     public $fillable = [
         'user_id',
         'instructor_id',
@@ -68,6 +81,16 @@ class TrainingTicket extends Model
             .($facility ? $facility->identifier.' ' : '')
             .$level->name
             .' ('.$level->abbreviation.')';
+    }
+
+    public function isNoShow(): bool
+    {
+        return (int) $this->location === self::LOCATION_NO_SHOW;
+    }
+
+    public function locationLabel(): string
+    {
+        return self::LOCATIONS[$this->location] ?? 'Unknown';
     }
 
     public function duration(): Attribute

@@ -160,9 +160,13 @@ class UserController extends Controller
 
         $trainingTickets = $user->trainingTicketsAsStudent()->paginate(25, ['*'], 'ticketsPage');
 
+        // Only staff looking at someone else's tickets see the no-show count.
+        $noShowCount = Auth::id() !== $user->id ? $user->noShowTickets()->count() : null;
+
         return view('users.training-tickets', [
             'user' => $user,
             'trainingTickets' => $trainingTickets,
+            'noShowCount' => $noShowCount,
         ]);
     }
 

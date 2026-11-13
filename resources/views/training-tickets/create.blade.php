@@ -54,6 +54,7 @@
                 <option value="0" @selected(old('location') == 0)>Classroom</option>
                 <option value="1" @selected(old('location') == 1)>Live Network</option>
                 <option value="2" @selected(old('location') == 2)>Sweatbox</option>
+                <option value="3" @selected(old('location') == 3)>No Show</option>
             </select>
 
             <br>

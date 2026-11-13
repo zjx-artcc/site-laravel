@@ -37,7 +37,9 @@ class TrainingAssignmentController extends Controller
             $query->where('active', true);
         }
 
-        $trainingAssignments = $query->paginate(20);
+        $trainingAssignments = $query
+            ->query(fn ($q) => $q->with(['student' => fn ($s) => $s->withCount('noShowTickets')]))
+            ->paginate(20);
 
         return view('training-assignment.index', compact('trainingAssignments'));
     }

@@ -43,6 +43,11 @@ class SyncTrainingTickets implements ShouldQueue
         $certificationLabel = $ticket->certificationIssuedLabel();
         $notes = $ticket->notes.($certificationLabel ? "\n\n".$certificationLabel : '');
 
+        // VATUSA has no no-show location, so send it as Classroom and flag it in the notes.
+        if ($ticket->isNoShow()) {
+            $notes = "No Show\n\n".$notes;
+        }
+
         try {
             $request = Http::post($API_URL, [
                 'apikey' => config('app.vatusa_api_key'),
@@ -53,7 +58,7 @@ class SyncTrainingTickets implements ShouldQueue
                 'movements' => $ticket->movements,
                 'score' => $ticket->score,
                 'notes' => $notes,
-                'location' => $ticket->location,
+                'location' => $ticket->isNoShow() ? 0 : $ticket->location,
             ]);
         } catch (Exception $e) {
             Log::error($e->getMessage());

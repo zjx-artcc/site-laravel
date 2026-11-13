@@ -11,6 +11,7 @@
             <x-label label="Student" :value="$trainingTicket->student->first_name.' '.$trainingTicket->student->last_name"/>
             <x-label label="Instructor" :value="$trainingTicket->instructor->first_name.' '.$trainingTicket->instructor->last_name"/>
             <x-label label="Position" :value="$trainingTicket->position"/>
+            <x-label label="Session Location" :value="$trainingTicket->locationLabel()"/>
             <x-label-slot label="Score">
                 <x-rating-readonly :rating="$trainingTicket->score"/>
             </x-label-slot>
@@ -32,6 +33,7 @@
 
     @if($staffView)
         <div class="card card-body bg-base-300 w-full max-w-3xl mt-6 border border-warning">
+            <x-label label="Student No Shows (staff only)" :value="$noShowCount"/>
             <x-label-slot label="Instructor Notes (staff only)">
                 <p class="text-sm opacity-70 -mt-1 mb-2">Visible only to training staff. The student never sees this.</p>
                 <div class="bg-base-100 border border-base-300 rounded-md p-4 min-h-24 rich-text">{!! $trainingTicket->instructor_notes ? \Stevebauman\Purify\Facades\Purify::clean($trainingTicket->instructor_notes) : 'No instructor notes.' !!}</div>

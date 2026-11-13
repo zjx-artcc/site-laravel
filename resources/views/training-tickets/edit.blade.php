@@ -55,6 +55,9 @@
                 <option
                     value="2"
                     {{ old('location', $trainingTicket->location) == "2" ? 'selected' : '' }}>Sweatbox</option>
+                <option
+                    value="3"
+                    {{ old('location', $trainingTicket->location) == "3" ? 'selected' : '' }}>No Show</option>
             </select>
 
             <br>
