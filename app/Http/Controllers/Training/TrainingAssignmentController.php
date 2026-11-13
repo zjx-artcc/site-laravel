@@ -79,6 +79,19 @@ class TrainingAssignmentController extends Controller
         // without it every page link is a bare ?page=N.
         $trainingAssignments = $query->paginate(20)->withQueryString();
 
+        // A request can name a page that no longer exists: the inline status
+        // change reloads the page it was on, and marking the last row of the
+        // last page Complete takes that page away with it. Laravel renders an
+        // empty paginator rather than redirecting, which reads as "there are no
+        // training assignments" while earlier pages are still full — so bounce
+        // to the last real page instead.
+        if ($trainingAssignments->isEmpty() && $trainingAssignments->currentPage() > 1) {
+            return redirect()->route('training-assignments.index', array_merge(
+                $request->query(),
+                ['page' => $trainingAssignments->lastPage()],
+            ));
+        }
+
         // Headline counters, deliberately independent of the search/type filters
         // so they read as a stable picture of the queue rather than shifting
         // with whatever is typed in the search box. Both ignore completed and

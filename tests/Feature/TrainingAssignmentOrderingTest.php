@@ -401,3 +401,42 @@ test('striping restarts per group and is skipped for a lone row', function () {
     // Sanity: daisyUI's own zebra class is not doing the striping.
     expect($html)->not->toContain('table-zebra');
 });
+
+test('a page past the end redirects to the last real page', function () {
+    // 21 rows = two pages. The inline status change reloads the URL it was on,
+    // so closing the only row on page two asks for a page that is now gone.
+    foreach (range(1, 21) as $i) {
+        makeAssignment('2026-01-'.str_pad((string) $i, 2, '0', STR_PAD_LEFT).' 00:00:00');
+    }
+
+    $this->actingAs(orderingStaff())
+        ->get(route('training-assignments.index', ['page' => 2]))
+        ->assertOk();
+
+    TrainingAssignment::query()->latest('created_at')->first()->update([
+        'status' => TrainingStatus::COMPLETE,
+        'active' => false,
+    ]);
+
+    $this->actingAs(orderingStaff())
+        ->get(route('training-assignments.index', ['page' => 2]))
+        ->assertRedirect(route('training-assignments.index', ['page' => 1]));
+});
+
+test('the redirect keeps the search and filter query string', function () {
+    makeTypedAssignment(TrainingType::C1, '2026-01-01 00:00:00');
+
+    $this->actingAs(orderingStaff())
+        ->get(route('training-assignments.index', ['page' => 4, 'trainingType' => TrainingType::C1->value]))
+        ->assertRedirect(route('training-assignments.index', [
+            'page' => 1,
+            'trainingType' => TrainingType::C1->value,
+        ]));
+});
+
+test('page one is rendered rather than redirected when the queue is empty', function () {
+    $this->actingAs(orderingStaff())
+        ->get(route('training-assignments.index'))
+        ->assertOk()
+        ->assertSee('There are no training assignments.');
+});
