@@ -7,15 +7,21 @@
         "laravel",
         "framework"
     ],
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/laravel-shift/livewire-calendar.git"
+        }
+    ],
     "license": "GPL-3.0-or-later",
     "require": {
         "php": "^8.2|^8.4",
-        "asantibanez/livewire-calendar": "^2.3",
+        "asantibanez/livewire-calendar": "dev-l13-compatibility",
         "doctrine/dbal": "*",
-        "laravel/framework": "^12.0",
+        "laravel/framework": "^13.0",
         "laravel/scout": "*",
         "laravel/socialite": "^5.23",
-        "laravel/tinker": "^2.10.1",
+        "laravel/tinker": "^3.0",
         "livewire/volt": "^1.7.0",
         "marvinlabs/laravel-discord-logger": "^1.4",
         "nyholm/psr7": "^1.8",
@@ -77,7 +83,7 @@
             "@php artisan package:discover --ansi"
         ],
         "post-update-cmd": [
-             "@php artisan vendor:publish --tag=laravel-assets --ansi --force",
+            "@php artisan vendor:publish --tag=laravel-assets --ansi --force",
             "Illuminate\\Foundation\\ComposerScripts::postUpdate",
             "@composer ide-helper"
         ],
