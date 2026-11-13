@@ -91,6 +91,32 @@ them.
 - **Never edit an existing migration.** Schema changes are always a new migration file, even for
   a change to something added earlier in the same PR/branch.
 
+- **A shortcut UI must write every field the full form writes.** When you add an inline control
+  that edits something the Edit page already edits, list the fields each one touches and compare
+  them. The inline training status cell wrote `status` and not `active`, which the Edit page sets
+  alongside it — so completing a student inline left them unable to request their next rating
+  (`create()` refuses a new request while any assignment has `active = true`), and reopening one
+  put it back in the queue where `claim()` and `drop()` both refuse it. Before changing who writes
+  a column, grep for who *reads* it (`grep -rn "'active'\|->active" app/`): the consumer that
+  breaks is rarely in the file you are editing — in that case one of them was
+  `RosterPurgeController`.
+
+- **Walk the lifecycle in the browser, not just the page you changed.** Rendering checks (badges,
+  ordering, grouping) pass while the state machine underneath is broken. Log in as the role the
+  feature is for and drive the whole loop — claim a student, complete them, then try to make a new
+  request as that student. Three of the four review findings on the training queue revamp fell out
+  of that one loop, and none of them were visible in the diff.
+
+- **Do not delete a filter without first creating the data it was hiding.** "This filter appears
+  to do nothing" usually means no row currently matches it. Manufacture one in tinker and reload
+  the page before concluding it is dead — the removed "Show Inactive Requests" checkbox looked
+  inert only because nothing in the database was inactive-but-open at the time.
+
+- **Test paginated mutations on the last page.** Anything that changes a row and then reloads
+  breaks at a page boundary and nowhere else: closing the only row on the final page asked for a
+  page that no longer existed, and the queue rendered "There are no training assignments." with
+  two full pages behind it. Make 21 rows, go to `?page=2`, act on the row there.
+
 ## Scope discipline
 
 Per `CONTRIBUTING.md`: keep diffs focused. Fixing an unrelated pre-existing issue you notice along
