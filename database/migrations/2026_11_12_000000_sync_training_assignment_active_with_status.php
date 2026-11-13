@@ -1,6 +1,5 @@
 <?php
 
-use App\Enums\TrainingStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
@@ -27,13 +26,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        $closed = array_map(
-            fn (TrainingStatus $status) => $status->value,
-            TrainingStatus::closed()
-        );
-
+        // COMPLETE and FORFEIT, spelled out rather than read from the enum: a
+        // migration has to keep doing what it did the day it was written, even
+        // if a new closed status is added later.
         DB::table('training_assignments')
-            ->whereIn('status', $closed)
+            ->whereIn('status', [5, 6])
             ->where('active', true)
             ->update(['active' => false]);
     }

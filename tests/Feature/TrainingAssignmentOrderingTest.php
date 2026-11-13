@@ -499,3 +499,35 @@ test('a live row still offers Claim', function () {
         ->assertOk()
         ->assertSee(route('training-assignments.claim', ['assignment' => $live->id]), false);
 });
+
+test('a non-numeric training type filter is rejected, not run against the column', function () {
+    makeAssignment('2026-01-01 00:00:00');
+
+    // `min:0` let this through to an integer column, which Postgres answers
+    // with a 500. SQLite coerces, so assert on the validator instead.
+    $this->actingAs(orderingStaff())
+        ->get(route('training-assignments.index', ['trainingType' => 'abc']))
+        ->assertSessionHasErrors('trainingType');
+});
+
+test('a training type outside the enum is rejected', function () {
+    makeAssignment('2026-01-01 00:00:00');
+
+    $this->actingAs(orderingStaff())
+        ->get(route('training-assignments.index', ['trainingType' => 99]))
+        ->assertSessionHasErrors('trainingType');
+});
+
+test('the reload listener is registered once for the page', function () {
+    foreach (range(1, 3) as $i) {
+        makeAssignment('2026-01-0'.$i.' 00:00:00');
+    }
+
+    $html = $this->actingAs(orderingStaff())
+        ->get(route('training-assignments.index'))
+        ->assertOk()
+        ->getContent();
+
+    // One handler, not one per row: every row hears the same window event.
+    expect(substr_count($html, 'training-assignment-moved.window'))->toBe(1);
+});

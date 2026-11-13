@@ -351,3 +351,27 @@ test('waking a parked row reloads the page even between two open statuses', func
         ->call('setStatus', TrainingStatus::SOLO->value)
         ->assertDispatched('training-assignment-moved');
 });
+
+test('a non-numeric status is a validation error, not a 500', function () {
+    $assignment = inlineStatusAssignment(TrainingStatus::ACTIVE);
+    $this->actingAs(User::factory()->create()->assignRole('instructor'));
+
+    // setStatus() takes mixed so the error lands in the cell; an int parameter
+    // would fail the type check and 500 before validation ran.
+    Livewire::test(TrainingAssignmentStatus::class, ['assignment' => $assignment])
+        ->call('setStatus', 'abc')
+        ->assertHasErrors('status');
+
+    expect($assignment->fresh()->status)->toBe(TrainingStatus::ACTIVE);
+});
+
+test('a numeric status outside the enum is still rejected', function () {
+    $assignment = inlineStatusAssignment(TrainingStatus::ACTIVE);
+    $this->actingAs(User::factory()->create()->assignRole('instructor'));
+
+    Livewire::test(TrainingAssignmentStatus::class, ['assignment' => $assignment])
+        ->call('setStatus', '99')
+        ->assertHasErrors('status');
+
+    expect($assignment->fresh()->status)->toBe(TrainingStatus::ACTIVE);
+});

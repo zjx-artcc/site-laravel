@@ -35,19 +35,22 @@ class TrainingAssignmentStatus extends Component
         abort_unless(auth()->user()?->hasPermissionTo('manage students'), 403);
     }
 
-    public function setStatus(int $status): void
+    // `mixed` rather than `int`: a crafted request with a non-numeric value
+    // would fail the parameter type and 500 before validation could put the
+    // error in the cell where the user can see it.
+    public function setStatus(mixed $status): void
     {
         $this->authorizeWrite();
 
         // Held on the component (rather than validated as a bare argument) so a
         // rejected value surfaces through the normal error bag in the cell.
-        $this->status = $status;
+        $this->status = is_numeric($status) ? (int) $status : null;
 
         $this->validate([
             'status' => ['required', Rule::enum(TrainingStatus::class)],
         ]);
 
-        $new = TrainingStatus::from($status);
+        $new = TrainingStatus::from($this->status);
         $was = $this->assignment->status;
 
         if ($new === $was) {

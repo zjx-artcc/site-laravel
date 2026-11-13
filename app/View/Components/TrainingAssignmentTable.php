@@ -18,10 +18,21 @@ class TrainingAssignmentTable extends Component
     public Collection $groups;
 
     /**
+     * Whether the viewer may edit statuses and reach the Edit page.
+     *
+     * Resolved once here rather than per row: the answer is the same for the
+     * whole page, and asking in the template meant one permission lookup per
+     * row plus another inside each status cell.
+     */
+    public bool $canManageStudents;
+
+    /**
      * Create a new component instance.
      */
     public function __construct(public mixed $trainingAssignments)
     {
+        $this->canManageStudents = (bool) auth()->user()?->hasPermissionTo('manage students');
+
         // The query already orders closed-last, then by course seniority, then
         // by request age, so grouping here preserves that order and keeps the
         // Blade file a pure template. Grouping is per page: a type spanning a

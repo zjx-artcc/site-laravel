@@ -231,9 +231,12 @@ record (there is a `TODO: make store` note on the route):
   `manage students`; emails the student.
 - **Update** — `@update` (`PUT /admin/training/assignments/{assignment}`):
   requires `manage students`; sets `instructor_id`, `status`, `training_type`;
-  emails the student only when `notifyUser` is checked. `active` is **derived**
-  from the submitted status (`! TrainingStatus::isClosed()`), not posted — see
-  *The `active` flag* below.
+  emails the student only when `notifyUser` is checked; redirects to the queue,
+  not back to the form, since the saved row is only visible there. `active` is
+  **derived** from the submitted status (`! TrainingStatus::isClosed()`), not
+  posted — see *The `active` flag* below. Saving therefore wakes a parked row,
+  so the save is **refused** (with a flash error) when the student already has
+  a live assignment elsewhere.
 - **Deactivate (destroy)** — `@destroy` (`DELETE /admin/training/assignments`,
   id in the request body): allowed if the caller is the student *or* has the
   `deactivate training assignments` permission; sets `active = false` and
@@ -243,7 +246,7 @@ record (there is a `TODO: make store` note on the route):
   `TrainingAssignmentStatus` Livewire component
   (`app/Livewire/TrainingAssignmentStatus.php`). Clicking the status badge opens
   a menu of statuses; picking one saves immediately via `setStatus()`. Requires
-  `manage students` (re-checked in `mount()` and in `save()`, since a Livewire
+  `manage students` (re-checked in `mount()` and in `setStatus()`, since a Livewire
   action request does not re-run the route middleware); everyone else sees a
   plain, non-clickable badge. Unlike `@update` it **never emails the student** —
   a one-click cell should not be able to send mail by accident — but the change
@@ -375,12 +378,24 @@ the heading rows throw its rhythm off, and it offers no way to skip a group. A
 group holding a single row is left unstriped.
 
 The search form filters on a free-text `search` term (via Scout) and an optional
-`trainingType`. The type guard uses `blank()`, not `is_null()` — the form's
-"None" option submits an empty string, and relying on the global
-`ConvertEmptyStringsToNull` middleware to turn that into null would otherwise
-leave the filter one middleware change away from `where('training_type', '')`
-against an integer column. The paginator is built with `withQueryString()` so
-paging keeps both filters (matching `AuditLogController`).
+`trainingType`, which is validated with `Rule::enum(TrainingType::class)`. The
+old `sometimes|min:0` rule passed anything with a length, so `?trainingType=abc`
+reached the integer column and Postgres answered with a 500 — SQLite coerces, so
+the test suite never saw it. The type guard also uses `blank()`, not
+`is_null()`: the form's "None" option submits an empty string, and relying on
+the global `ConvertEmptyStringsToNull` middleware to turn that into null would
+leave the filter one middleware change away from `where('training_type', '')`.
+The paginator is built with `withQueryString()` so paging keeps both filters
+(matching `AuditLogController`).
+
+The two headline counters come back from one aggregate query (two conditional
+`SUM`s over the same filtered scan) rather than two `count()` calls over the
+same rows. `manage students` is resolved once in `TrainingAssignmentTable` and
+passed to the template as `$canManageStudents`, instead of being looked up per
+row and again inside every status cell. The `training-assignment-moved`
+listener lives on the page wrapper in `training-assignment/index.blade.php`, not
+on each row's component: it is a window event, so one handler serves all twenty
+rows.
 
 ### Issue a solo certification
 

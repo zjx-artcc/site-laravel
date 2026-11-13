@@ -15,14 +15,18 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\Rule;
 
 class TrainingAssignmentController extends Controller
 {
     public function index(Request $request)
     {
+        // `min:0` passed anything with a length, so ?trainingType=abc reached
+        // the integer column and Postgres rejected it with a 500 (SQLite
+        // coerces, so the test suite never saw it).
         $validated = $request->validate([
             'search' => 'nullable|string',
-            'trainingType' => 'sometimes|min:0',
+            'trainingType' => ['nullable', Rule::enum(TrainingType::class)],
         ]);
 
         $query = TrainingAssignment::search($request->input('search'));
@@ -41,10 +45,7 @@ class TrainingAssignmentController extends Controller
         // them from the UI at all.
         $showClosed = $request->boolean('showClosed');
 
-        $closedStatuses = array_map(
-            fn (TrainingStatus $status) => $status->value,
-            TrainingStatus::closed()
-        );
+        $closedStatuses = TrainingStatus::closedValues();
 
         if (! $showClosed) {
             $query->whereNotIn('status', $closedStatuses);
@@ -100,15 +101,19 @@ class TrainingAssignmentController extends Controller
         // old Active checkbox — those are still listed, marked Inactive, but
         // claim() and drop() refuse them, so counting them as requests waiting
         // to be picked up would overstate the queue.
-        $pendingCount = TrainingAssignment::whereNull('instructor_id')
+        // Both numbers describe the same set of rows, split on whether an
+        // instructor is assigned, so they come back from one aggregate rather
+        // than two counts over the same scan. CASE rather than COUNT(*) FILTER
+        // to keep it portable between Postgres and the SQLite test database.
+        $counts = TrainingAssignment::query()
             ->where('active', true)
             ->whereNotIn('status', $closedStatuses)
-            ->count();
+            ->selectRaw('SUM(CASE WHEN instructor_id IS NULL THEN 1 ELSE 0 END) AS pending')
+            ->selectRaw('SUM(CASE WHEN instructor_id IS NOT NULL THEN 1 ELSE 0 END) AS in_training')
+            ->first();
 
-        $inTrainingCount = TrainingAssignment::whereNotNull('instructor_id')
-            ->where('active', true)
-            ->whereNotIn('status', $closedStatuses)
-            ->count();
+        $pendingCount = (int) ($counts->pending ?? 0);
+        $inTrainingCount = (int) ($counts->in_training ?? 0);
 
         return view('training-assignment.index', compact(
             'trainingAssignments',
@@ -176,12 +181,30 @@ class TrainingAssignmentController extends Controller
 
         $validated = $request->validate([
             'instructorId' => 'string|nullable',
-            'status' => 'int|required|min:1',
-            'trainingType' => 'int|required',
+            'status' => ['required', Rule::enum(TrainingStatus::class)],
+            'trainingType' => ['required', Rule::enum(TrainingType::class)],
             'notifyUser' => 'sometimes|in:on,1',
         ]);
 
         $trainingAssignment = TrainingAssignment::findOrFail($id);
+        $status = TrainingStatus::from((int) $validated['status']);
+
+        // Saving derives `active` from the status, so saving a parked row wakes
+        // it even when only the instructor or type was touched. That is fine on
+        // its own, but not when the student has picked up another assignment
+        // since: they would hold two live rows, which lets two trainers claim
+        // them and sidesteps the one-active-assignment rule in create().
+        if (! $trainingAssignment->active && ! $status->isClosed()) {
+            $clash = TrainingAssignment::where('user_id', $trainingAssignment->user_id)
+                ->where('active', true)
+                ->whereKeyNot($trainingAssignment->getKey())
+                ->exists();
+
+            if ($clash) {
+                return redirect()->back()->with('error', 'This student already has an active training assignment.');
+            }
+        }
+
         $trainingAssignment->instructor_id = $validated['instructorId'];
         $trainingAssignment->status = $validated['status'];
         $trainingAssignment->training_type = $validated['trainingType'];
@@ -193,7 +216,7 @@ class TrainingAssignmentController extends Controller
         // active assignment exists), and an open assignment with Active
         // unticked sat in the queue refusing claim() and drop(). Nothing in the
         // app used that second axis deliberately.
-        $trainingAssignment->active = ! TrainingStatus::from($validated['status'])->isClosed();
+        $trainingAssignment->active = ! $status->isClosed();
         $trainingAssignment->save();
 
         if ($validated['notifyUser'] ?? false) {
@@ -205,7 +228,9 @@ class TrainingAssignmentController extends Controller
             'updated_by' => $user->id,
         ]);
 
-        return redirect()->back()->with('success', 'Training request updated successfully');
+        // Back to the queue rather than back() to the form that was just saved:
+        // the row's new status, section and badge are all only visible there.
+        return redirect()->route('training-assignments.index')->with('success', 'Training request updated successfully');
     }
 
     public function claim(Request $request, int $id)

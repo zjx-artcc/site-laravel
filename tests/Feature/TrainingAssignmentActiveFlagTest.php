@@ -107,3 +107,57 @@ test('every status maps to the expected active flag', function () {
             ->toBe(! $status->isClosed(), $status->label().' should leave active = '.var_export(! $status->isClosed(), true));
     }
 });
+
+test('the edit page refuses to wake a parked row when the student is already training', function () {
+    $student = User::factory()->create(['rostered' => true]);
+
+    $parked = TrainingAssignment::create([
+        'user_id' => $student->id,
+        'training_type' => TrainingType::S2,
+        'status' => TrainingStatus::ACTIVE,
+        'active' => false,
+    ]);
+
+    TrainingAssignment::create([
+        'user_id' => $student->id,
+        'training_type' => TrainingType::C1,
+        'status' => TrainingStatus::ACTIVE,
+        'active' => true,
+    ]);
+
+    // Saving derives active from the status, so an edit touching only the
+    // instructor would otherwise wake the parked row and give the student two.
+    $this->actingAs(editingStaff())
+        ->put(
+            route('training-assignments.update', ['assignment' => $parked->id]),
+            editPayload($parked, TrainingStatus::ACTIVE)
+        )
+        ->assertSessionHas('error');
+
+    expect($parked->fresh()->active)->toBeFalse();
+});
+
+test('saving the edit page lands back on the queue', function () {
+    $assignment = flagAssignment(TrainingStatus::ACTIVE, true);
+
+    $this->actingAs(editingStaff())
+        ->put(
+            route('training-assignments.update', ['assignment' => $assignment->id]),
+            editPayload($assignment, TrainingStatus::SOLO)
+        )
+        ->assertRedirect(route('training-assignments.index'))
+        ->assertSessionHas('success');
+});
+
+test('the edit page rejects a status outside the enum', function () {
+    $assignment = flagAssignment(TrainingStatus::ACTIVE, true);
+
+    $this->actingAs(editingStaff())
+        ->put(
+            route('training-assignments.update', ['assignment' => $assignment->id]),
+            ['instructorId' => null, 'status' => 99, 'trainingType' => TrainingType::S1->value]
+        )
+        ->assertSessionHasErrors('status');
+
+    expect($assignment->fresh()->status)->toBe(TrainingStatus::ACTIVE);
+});

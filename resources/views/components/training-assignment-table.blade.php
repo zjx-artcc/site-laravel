@@ -74,7 +74,7 @@
 
                 <td>
                     {{-- Editable in place for instructors; a plain badge for everyone else. --}}
-                    @if(auth()->user()?->hasPermissionTo('manage students'))
+                    @if($canManageStudents)
                         @livewire('training-assignment-status', ['assignment' => $trainingAssignment], key($trainingAssignment->id))
                     @else
                         <x-training-assignment-status-label :status="$trainingAssignment->status"/>
@@ -151,9 +151,9 @@
                                     </li>
                                 @endif
 
-                                @haspermission('manage students')
-                                <li><a href={{ route('training-assignments.edit', ['assignment' => $trainingAssignment->id]) }}>Edit</a></li>
-                                @endhaspermission
+                                @if($canManageStudents)
+                                    <li><a href={{ route('training-assignments.edit', ['assignment' => $trainingAssignment->id]) }}>Edit</a></li>
+                                @endif
                             </ul>
                         </template>
                     </div>

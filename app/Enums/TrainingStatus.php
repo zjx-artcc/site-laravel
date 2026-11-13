@@ -36,6 +36,16 @@ enum TrainingStatus: int
         return [self::COMPLETE, self::FORFEIT];
     }
 
+    /**
+     * The backing values of {@see closed()}, for queries and `whereNotIn`.
+     *
+     * @return array<int, int>
+     */
+    public static function closedValues(): array
+    {
+        return array_map(fn (self $status) => $status->value, self::closed());
+    }
+
     public function isClosed(): bool
     {
         return in_array($this, self::closed(), true);
