@@ -65,14 +65,36 @@ The `MCO_*` cases are the Orlando (KMCO) local endorsements. Note that
 
 ### Enum: `TrainingStatus` (int-backed)
 
-| Case | Value | `label()` |
-|------|-------|-----------|
-| `ACTIVE` | 1 | `Active` |
-| `SOLO` | 2 | `Solo Cert` |
-| `MOCK` | 3 | `Mock OTS` |
-| `CHECKOUT` | 4 | `Checkout` |
-| `COMPLETE` | 5 | `Complete` |
-| `FORFEIT` | 6 | `Forfeit` |
+| Case | Value | `label()` | `badgeClass()` |
+|------|-------|-----------|----------------|
+| `ACTIVE` | 1 | `Active` | `badge-success` (green) |
+| `SOLO` | 2 | `Solo Cert` | `badge-info` (cyan) |
+| `MOCK` | 3 | `Mock OTS` | `badge-warning` (amber) |
+| `CHECKOUT` | 4 | `Checkout` | `badge-secondary` (purple) |
+| `COMPLETE` | 5 | `Complete` | `badge-primary` (blue) |
+| `FORFEIT` | 6 | `Forfeit` | `badge-error` (red) |
+
+`closed()` returns the statuses that take an assignment out of active training
+(`COMPLETE`, `FORFEIT`), and `isClosed()` tests one case against it. The staff
+queue hides those rows unless asked for, sorts them below every training-type
+group, and lists them under one `Completed / Forfeited` heading.
+
+`badgeClass()` returns the daisyUI classes (plus the matching `text-*-content`)
+used to render a status as a filled chip, matching how certifications are shown
+on a user profile. The palette reads as a progression — green while training is
+live, cool tones through the intermediate stages, brand blue once complete, red
+on forfeit — and green is reserved for `ACTIVE` so it never competes with
+`COMPLETE`.
+
+Render a status through the `<x-training-assignment-status-label>` component
+rather than printing `label()` directly; it is used by both the staff training
+assignments table (`components/training-assignment-table.blade.php`) and the
+profile table (`components/training-assignments-profile-table.blade.php`).
+
+Tailwind picks these class names up out of `app/Enums/TrainingStatus.php` via its
+automatic source detection, so a new case needs no `@source` change in
+`resources/css/app.css` — but it does need a real class string in the `match`,
+not an interpolated one.
 
 ---
 
@@ -208,16 +230,172 @@ record (there is a `TODO: make store` note on the route):
   `instructor_id` **only if** the caller is the assigned instructor *or* has
   `manage students`; emails the student.
 - **Update** — `@update` (`PUT /admin/training/assignments/{assignment}`):
-  requires `manage students`; sets `instructor_id`, `active`, `status`,
-  `training_type`; emails the student only when `notifyUser` is checked.
+  requires `manage students`; sets `instructor_id`, `status`, `training_type`;
+  emails the student only when `notifyUser` is checked; redirects to the queue,
+  not back to the form, since the saved row is only visible there. `active` is
+  **derived** from the submitted status (`! TrainingStatus::isClosed()`), not
+  posted — see *The `active` flag* below. Saving therefore wakes a parked row,
+  so the save is **refused** (with a flash error) when the student already has
+  a live assignment elsewhere.
 - **Deactivate (destroy)** — `@destroy` (`DELETE /admin/training/assignments`,
   id in the request body): allowed if the caller is the student *or* has the
   `deactivate training assignments` permission; sets `active = false` and
   `status = 'withdrawn'`.
 
-`TrainingAssignmentsTable` (`app/Livewire/TrainingAssignmentsTable.php`) is a
-Livewire component that lists assignments with a `includeInactive` toggle
-(active-only by default), paginated 25/page, newest first.
+- **Change status inline** — no route: the Status cell of the staff table is the
+  `TrainingAssignmentStatus` Livewire component
+  (`app/Livewire/TrainingAssignmentStatus.php`). Clicking the status badge opens
+  a menu of statuses; picking one saves immediately via `setStatus()`. Requires
+  `manage students` (re-checked in `mount()` and in `setStatus()`, since a Livewire
+  action request does not re-run the route middleware); everyone else sees a
+  plain, non-clickable badge. Unlike `@update` it **never emails the student** —
+  a one-click cell should not be able to send mail by accident — but the change
+  is recorded in the activity log like any other assignment update. Alongside
+  `status` it writes the derived `active` flag, so closing a row here has the
+  same effect on it as `@destroy` does. Re-picking the status the assignment
+  already has is a no-op (no write, no log entry, no event).
+
+  The component dispatches a `training-assignment-moved` browser event, and an
+  Alpine listener reloads the page, in the two cases where something outside the
+  component changes: the status crossed the open/closed line (so the row's
+  section and the group counts change), or `active` changed (so the row's
+  Inactive marker, its Claim action and its place in the counters change). A
+  change between two open statuses on a row that was already live just repaints
+  the badge in place.
+
+  The menu is `position: fixed` with coordinates measured by Alpine, because the
+  table lives in an `overflow-x-auto` wrapper that would clip a normally
+  positioned dropdown. It is deliberately *not* teleported to `<body>` the way
+  the neighbouring Actions menu is — a teleported element sits outside the
+  Livewire component root, where `wire:` bindings stop working. On open it nudges
+  itself back inside the viewport, flipping above the badge when there is no room
+  below.
+
+The staff list itself is server-rendered: `@index` paginates 20/page through
+Scout and hands the results to the `training-assignment-table` Blade component.
+`app/Livewire/TrainingAssignmentsTable.php` and its view are **dead code** —
+nothing references either, and the view still renders a `NOT IMPL. YET` cell and
+reads a `trainee_id` column the model does not have.
+
+Completed and forfeited assignments (`TrainingStatus::closed()`) are hidden by
+default and revealed by the **Show completed / forfeited** checkbox, which
+submits on change and lists them in a single `Completed / Forfeited` section
+below every training-type group.
+
+Everything else is always listed. The old "Show Inactive Requests" checkbox has
+been removed: it filtered to `active = true` by default, which left no way to
+reach an inactive row from the UI, and now that `active` is derived from the
+status (below) it would hide exactly the rows the closed-status filter already
+hides.
+
+A request for a page past the last one — which the inline status change can
+produce by closing the only row on the final page and reloading the URL it was
+on — redirects to the last real page, query string intact, rather than rendering
+an empty paginator under "There are no training assignments."
+
+### The `active` flag
+
+`active` is derived from the status everywhere that writes it: it is `true` for
+the four open statuses and `false` for `COMPLETE` and `FORFEIT`. It is not
+independently editable.
+
+It matters because it, not the status, is what the rest of the app gates on:
+
+- `@create` refuses a new request while the student has **any** active
+  assignment;
+- `@claim` and `@drop` both refuse an inactive assignment with "Cannot update
+  inactive training assignment."
+
+The Edit page used to expose `active` as a checkbox beside the status dropdown,
+so the two could disagree, and both combinations broke something: Complete with
+Active ticked went on blocking the student's next training request, while an
+open status with Active unticked sat in the queue looking claimable and refusing
+every action. Nothing in the app used that second axis deliberately, so the
+checkbox was removed rather than reconciled.
+
+`2026_11_12_000000_sync_training_assignment_active_with_status` fixes the rows
+written under the old form that block a student — a closed status with
+`active = true` — and deliberately leaves the mirror case alone. An open status
+with `active = false` may have been set on purpose, to park a request without
+marking it Forfeit, and reactivating it could put a second live request in the
+queue for a student who has since re-requested, or quietly exempt a dormant
+observer from the roster purge (`RosterPurgeController` builds its exemption list
+from `active = true`). Those rows heal the next time someone sets the status,
+since both writers set the flag unconditionally.
+
+Until they do, a parked row is listed with an **Inactive** badge beside its
+status, offers neither Claim nor Drop in its Actions menu (both would error),
+and is left out of the two headline counters. It stays in the list rather than
+being filtered out because nothing else links to a parked row — the queue is the
+only way to reach one.
+
+Reopening a parked or closed row is **refused** when the student already has a
+live assignment elsewhere: forfeit an S2, request a C1, reopen the S2, and the
+student would hold two active rows, which lets two trainers claim them and
+sidesteps the one-active-assignment rule in `@create`. The cell shows "This
+student already has an active training assignment." and writes nothing.
+
+The view heads the table with two counters, both computed in `@index`:
+
+| Counter | Query |
+|---------|-------|
+| `Total Requests` | open assignments with **no** `instructor_id` — the queue waiting to be claimed |
+| `Students In Training` | open assignments **with** an `instructor_id` |
+
+Both exclude `TrainingStatus::closed()`, so a completed or forfeited assignment
+counts toward neither, and ticking **Show completed / forfeited** does not move
+them. They are also deliberately independent of the search and training-type
+filters, so they read as a stable picture of the queue rather than shifting with
+whatever is typed in the search box — which does mean the numbers will not match
+the row count when a filter is applied.
+
+Rows are **grouped into one section per training type**, each with a heading row
+carrying the type's label and its row count. The group order is course
+seniority — **C1, F11 TRACON, S3, MCO TWR, S2, MCO GND, S1** — and inside each
+group the oldest request is listed first, so the longest-waiting student tops
+each section.
+
+Ordering is three keys in `@index`: closed rows last (a `CASE WHEN status IN
+(...)`), then course seniority, then `created_at` ascending. The seniority key
+is a `CASE` expression mapping `training_type` to a rank: the column stores the enum's backing value, which is
+only the order cases were added (S1=1 … MCO_APP=7), so seniority has to be
+mapped in the query. It is applied to the Scout builder, which the
+collection/database engines pass through to the underlying Eloquent query — so
+it sorts the whole result set before pagination, not one page after the fact.
+Swapping to a hosted search engine (Algolia/Meilisearch) would need this
+expressed as an engine-side sort instead.
+
+`TrainingAssignmentTable` (`app/View/Components/TrainingAssignmentTable.php`)
+then does the grouping with a `groupBy` on the current page's items, so the
+Blade file stays a pure template. Closed rows all share the `CLOSED_GROUP`
+key, which is what collapses them into one section rather than splitting them
+across the type groups. Grouping is **per page**: a type that spans
+a page boundary gets its heading repeated at the top of the next page.
+
+Striping is applied per group in the Blade file rather than with daisyUI's
+`table-zebra`: that class alternates on `nth-child` across the whole `tbody`, so
+the heading rows throw its rhythm off, and it offers no way to skip a group. A
+group holding a single row is left unstriped.
+
+The search form filters on a free-text `search` term (via Scout) and an optional
+`trainingType`, which is validated with `Rule::enum(TrainingType::class)`. The
+old `sometimes|min:0` rule passed anything with a length, so `?trainingType=abc`
+reached the integer column and Postgres answered with a 500 — SQLite coerces, so
+the test suite never saw it. The type guard also uses `blank()`, not
+`is_null()`: the form's "None" option submits an empty string, and relying on
+the global `ConvertEmptyStringsToNull` middleware to turn that into null would
+leave the filter one middleware change away from `where('training_type', '')`.
+The paginator is built with `withQueryString()` so paging keeps both filters
+(matching `AuditLogController`).
+
+The two headline counters come back from one aggregate query (two conditional
+`SUM`s over the same filtered scan) rather than two `count()` calls over the
+same rows. `manage students` is resolved once in `TrainingAssignmentTable` and
+passed to the template as `$canManageStudents`, instead of being looked up per
+row and again inside every status cell. The `training-assignment-moved`
+listener lives on the page wrapper in `training-assignment/index.blade.php`, not
+on each row's component: it is a window event, so one handler serves all twenty
+rows.
 
 ### Issue a solo certification
 
@@ -327,7 +505,9 @@ All four are queued (`ShouldQueue`). The VATUSA jobs read
 | `app/Models/TrainingTicket.php` | Ticket model, `duration` attribute, sync flags |
 | `app/Models/TrainingAssignment.php` | Assignment model, status/type casts |
 | `app/Models/SoloCert.php` | Solo cert model, 30-day expiry accessors |
-| `app/Livewire/TrainingAssignmentsTable.php` | Assignment list with active/inactive toggle |
+| `app/View/Components/TrainingAssignmentTable.php` | Staff assignment list (Blade, server-rendered) |
+| `app/Livewire/TrainingAssignmentStatus.php` | Click-to-change status cell (`manage students`) |
+| `app/Livewire/TrainingAssignmentsTable.php` | Dead code — unreferenced, superseded by the Blade table |
 | `app/Enums/TrainingType.php` | Course types (incl. `MCO_*`) |
 | `app/Enums/TrainingStatus.php` | Assignment lifecycle statuses |
 | `app/Jobs/SyncTrainingTickets.php` | Batch push tickets → VATUSA |

@@ -12,34 +12,114 @@ use App\Models\Staff;
 use App\Models\TrainingAssignment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\Rule;
 
 class TrainingAssignmentController extends Controller
 {
     public function index(Request $request)
     {
+        // `min:0` passed anything with a length, so ?trainingType=abc reached
+        // the integer column and Postgres rejected it with a 500 (SQLite
+        // coerces, so the test suite never saw it).
         $validated = $request->validate([
             'search' => 'nullable|string',
-            'trainingType' => 'sometimes|min:0',
-            'showInactive' => 'nullable|sometimes:on',
+            'trainingType' => ['nullable', Rule::enum(TrainingType::class)],
         ]);
 
-        $query = null;
+        $query = TrainingAssignment::search($request->input('search'));
 
-        if (is_null($request->input('trainingType'))) {
-            $query = TrainingAssignment::search($request->input('search'));
-        } else {
-            $query = TrainingAssignment::search($request->input('search'))->where('training_type', $validated['trainingType']);
+        // blank() rather than is_null(): the "None" option submits an empty
+        // string, and only the ConvertEmptyStringsToNull middleware makes that
+        // arrive as null. Without this the filter would run
+        // `where('training_type', '')` against an integer column.
+        if (! blank($validated['trainingType'] ?? null)) {
+            $query->where('training_type', $validated['trainingType']);
         }
 
-        if (! $request->boolean('showInactive')) {
-            $query->where('active', true);
+        // Completed and forfeited assignments are out of training, so they are
+        // hidden unless asked for. Inactive-but-open ones still show: the status
+        // badge says where each stands, and hiding those left no way to reach
+        // them from the UI at all.
+        $showClosed = $request->boolean('showClosed');
+
+        $closedStatuses = TrainingStatus::closedValues();
+
+        if (! $showClosed) {
+            $query->whereNotIn('status', $closedStatuses);
         }
 
-        $trainingAssignments = $query->paginate(20);
+        // Ordering, all of it applied to the Scout builder so it happens before
+        // pagination rather than to one page of already-sliced results:
+        //
+        //   1. closed rows last, so they land in the single
+        //      "Completed / Forfeited" section the table renders at the bottom;
+        //   2. then course seniority, which the table groups on (the column
+        //      holds the enum's backing value — just the order cases were added
+        //      — so the ranking has to be mapped here);
+        //   3. then oldest request first inside each group.
+        $query->orderBy(DB::raw(sprintf(
+            'CASE WHEN status IN (%s) THEN 1 ELSE 0 END',
+            implode(', ', $closedStatuses)
+        )), 'asc');
 
-        return view('training-assignment.index', compact('trainingAssignments'));
+        $query->orderBy(DB::raw('CASE training_type
+                WHEN 4 THEN 0   -- C1
+                WHEN 7 THEN 1   -- F11 TRACON
+                WHEN 3 THEN 2   -- S3
+                WHEN 6 THEN 3   -- MCO TWR
+                WHEN 2 THEN 4   -- S2
+                WHEN 5 THEN 5   -- MCO GND
+                WHEN 1 THEN 6   -- S1
+            END'), 'asc')
+            ->orderBy('created_at', 'asc');
+
+        // withQueryString() so paging keeps the search term and type filter;
+        // without it every page link is a bare ?page=N.
+        $trainingAssignments = $query->paginate(20)->withQueryString();
+
+        // A request can name a page that no longer exists: the inline status
+        // change reloads the page it was on, and marking the last row of the
+        // last page Complete takes that page away with it. Laravel renders an
+        // empty paginator rather than redirecting, which reads as "there are no
+        // training assignments" while earlier pages are still full — so bounce
+        // to the last real page instead.
+        if ($trainingAssignments->isEmpty() && $trainingAssignments->currentPage() > 1) {
+            return redirect()->route('training-assignments.index', array_merge(
+                $request->query(),
+                ['page' => $trainingAssignments->lastPage()],
+            ));
+        }
+
+        // Headline counters, deliberately independent of the search/type filters
+        // so they read as a stable picture of the queue rather than shifting
+        // with whatever is typed in the search box. Both ignore completed and
+        // forfeited assignments: those are out of training either way. They also
+        // require `active`, which excludes the rows parked under the Edit page's
+        // old Active checkbox — those are still listed, marked Inactive, but
+        // claim() and drop() refuse them, so counting them as requests waiting
+        // to be picked up would overstate the queue.
+        // Both numbers describe the same set of rows, split on whether an
+        // instructor is assigned, so they come back from one aggregate rather
+        // than two counts over the same scan. CASE rather than COUNT(*) FILTER
+        // to keep it portable between Postgres and the SQLite test database.
+        $counts = TrainingAssignment::query()
+            ->where('active', true)
+            ->whereNotIn('status', $closedStatuses)
+            ->selectRaw('SUM(CASE WHEN instructor_id IS NULL THEN 1 ELSE 0 END) AS pending')
+            ->selectRaw('SUM(CASE WHEN instructor_id IS NOT NULL THEN 1 ELSE 0 END) AS in_training')
+            ->first();
+
+        $pendingCount = (int) ($counts->pending ?? 0);
+        $inTrainingCount = (int) ($counts->in_training ?? 0);
+
+        return view('training-assignment.index', compact(
+            'trainingAssignments',
+            'pendingCount',
+            'inTrainingCount',
+        ));
     }
 
     public function create(Request $request)
@@ -101,17 +181,42 @@ class TrainingAssignmentController extends Controller
 
         $validated = $request->validate([
             'instructorId' => 'string|nullable',
-            'active' => 'sometimes|in:on,1',
-            'status' => 'int|required|min:1',
-            'trainingType' => 'int|required',
+            'status' => ['required', Rule::enum(TrainingStatus::class)],
+            'trainingType' => ['required', Rule::enum(TrainingType::class)],
             'notifyUser' => 'sometimes|in:on,1',
         ]);
 
         $trainingAssignment = TrainingAssignment::findOrFail($id);
+        $status = TrainingStatus::from((int) $validated['status']);
+
+        // Saving derives `active` from the status, so saving a parked row wakes
+        // it even when only the instructor or type was touched. That is fine on
+        // its own, but not when the student has picked up another assignment
+        // since: they would hold two live rows, which lets two trainers claim
+        // them and sidesteps the one-active-assignment rule in create().
+        if (! $trainingAssignment->active && ! $status->isClosed()) {
+            $clash = TrainingAssignment::where('user_id', $trainingAssignment->user_id)
+                ->where('active', true)
+                ->whereKeyNot($trainingAssignment->getKey())
+                ->exists();
+
+            if ($clash) {
+                return redirect()->back()->with('error', 'This student already has an active training assignment.');
+            }
+        }
+
         $trainingAssignment->instructor_id = $validated['instructorId'];
-        $trainingAssignment->active = $request->boolean('active');
         $trainingAssignment->status = $validated['status'];
         $trainingAssignment->training_type = $validated['trainingType'];
+
+        // `active` is derived from the status rather than edited on its own.
+        // It used to be a checkbox beside the status dropdown, which let the two
+        // disagree: an assignment marked Complete with Active still ticked kept
+        // blocking the student's next request (create() refuses one while any
+        // active assignment exists), and an open assignment with Active
+        // unticked sat in the queue refusing claim() and drop(). Nothing in the
+        // app used that second axis deliberately.
+        $trainingAssignment->active = ! $status->isClosed();
         $trainingAssignment->save();
 
         if ($validated['notifyUser'] ?? false) {
@@ -123,7 +228,9 @@ class TrainingAssignmentController extends Controller
             'updated_by' => $user->id,
         ]);
 
-        return redirect()->back()->with('success', 'Training request updated successfully');
+        // Back to the queue rather than back() to the form that was just saved:
+        // the row's new status, section and badge are all only visible there.
+        return redirect()->route('training-assignments.index')->with('success', 'Training request updated successfully');
     }
 
     public function claim(Request $request, int $id)
