@@ -78,7 +78,7 @@ Application code lives under `app/`. The most important directories:
 | `app/Mail/` | Mailables: `Welcome`, training and solo-cert notifications, and visitor-request notifications. |
 | `app/Models/` | Eloquent models: `User`, `Event`, `EventPosition`, `TrainingTicket`, `TrainingAssignment`, `SoloCert`, `VisitorRequest`, `CertificationFacility`, `CertificationLevel`, `UserCertification`, `OnlineController`, `Staff`, and others. |
 | `app/Services/` | Domain services — `VisitingChecklistService` and the `Socialite/VatsimProvider` custom OAuth provider. |
-| `app/View/` | Blade view components (`app/View/Components/`) such as `Card`, `NavLinks`, `OnlineController`, and various training/solo-cert table components. |
+| `app/View/` | Blade view components (`app/View/Components/`) such as `Card`, `NavLinks`, `OnlineController`, `ZuluTime` (24-hour UTC time display), and various training/solo-cert table components. |
 | `app/Http/Controllers/` | Standard controllers, grouped into `Auth/` and `Training/` subnamespaces. |
 | `app/Providers/` | `AppServiceProvider` and `VoltServiceProvider`, both registered in `bootstrap/providers.php`. |
 

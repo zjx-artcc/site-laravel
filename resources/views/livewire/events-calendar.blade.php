@@ -101,8 +101,8 @@
                                         @endif
                                     </p>
                                     <p class="text-xs text-base-content/60">
-                                        {{ $event->start->format('g:i A') }}
-                                        @if($event->end) – {{ $event->end->format('g:i A') }} @endif
+                                        <x-zulu-time :time="$event->start" format="H:i"/>
+                                        @if($event->end) – <x-zulu-time :time="$event->end" format="H:i"/> @endif
                                     </p>
                                     @if($event->description)
                                         <p class="text-xs text-base-content/50 line-clamp-2 mt-0.5">{{ strip_tags($event->description) }}</p>
