@@ -55,6 +55,17 @@ class TrainingAssignmentStatus extends Component
         }
 
         $this->assignment->status = $new;
+
+        // `active` is the flag the rest of the app actually gates on, not the
+        // status: create() refuses a new request while the student has an
+        // active assignment, and claim()/drop() reject an inactive one. Left
+        // behind, marking training Complete inline would still block the
+        // student's next request, and reopening a closed row would put it back
+        // in the queue with no way to claim it. Set unconditionally, which also
+        // heals any row predating the removal of the Edit page's Active
+        // checkbox, where the two were free to disagree.
+        $this->assignment->active = ! $new->isClosed();
+
         $this->assignment->save();
 
         // A status change can only move a row across the open/closed line: the

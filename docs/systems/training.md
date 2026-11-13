@@ -230,8 +230,10 @@ record (there is a `TODO: make store` note on the route):
   `instructor_id` **only if** the caller is the assigned instructor *or* has
   `manage students`; emails the student.
 - **Update** — `@update` (`PUT /admin/training/assignments/{assignment}`):
-  requires `manage students`; sets `instructor_id`, `active`, `status`,
-  `training_type`; emails the student only when `notifyUser` is checked.
+  requires `manage students`; sets `instructor_id`, `status`, `training_type`;
+  emails the student only when `notifyUser` is checked. `active` is **derived**
+  from the submitted status (`! TrainingStatus::isClosed()`), not posted — see
+  *The `active` flag* below.
 - **Deactivate (destroy)** — `@destroy` (`DELETE /admin/training/assignments`,
   id in the request body): allowed if the caller is the student *or* has the
   `deactivate training assignments` permission; sets `active = false` and
@@ -245,10 +247,10 @@ record (there is a `TODO: make store` note on the route):
   action request does not re-run the route middleware); everyone else sees a
   plain, non-clickable badge. Unlike `@update` it **never emails the student** —
   a one-click cell should not be able to send mail by accident — but the change
-  is recorded in the activity log like any other assignment update. It changes
-  `status` only: setting `FORFEIT` here does *not* also clear `active`, which is
-  what `@destroy` does. Re-picking the status the assignment already has is a
-  no-op (no write, no log entry, no event).
+  is recorded in the activity log like any other assignment update. Alongside
+  `status` it writes the derived `active` flag, so closing a row here has the
+  same effect on it as `@destroy` does. Re-picking the status the assignment
+  already has is a no-op (no write, no log entry, no event).
 
   When the new status crosses the open/closed line (to or from `COMPLETE`/
   `FORFEIT`) the component dispatches a `training-assignment-moved` browser
@@ -277,10 +279,41 @@ default and revealed by the **Show completed / forfeited** checkbox, which
 submits on change and lists them in a single `Completed / Forfeited` section
 below every training-type group.
 
-Everything else is always listed, inactive-but-open rows included — the status
-badge already says where each one stands, and the old "Show Inactive Requests"
-checkbox has been removed (it filtered to `active = true` by default, which left
-no way to reach such a row from the UI).
+Everything else is always listed. The old "Show Inactive Requests" checkbox has
+been removed: it filtered to `active = true` by default, which left no way to
+reach an inactive row from the UI, and now that `active` is derived from the
+status (below) it would hide exactly the rows the closed-status filter already
+hides.
+
+A request for a page past the last one — which the inline status change can
+produce by closing the only row on the final page and reloading the URL it was
+on — redirects to the last real page, query string intact, rather than rendering
+an empty paginator under "There are no training assignments."
+
+### The `active` flag
+
+`active` is derived from the status everywhere that writes it: it is `true` for
+the four open statuses and `false` for `COMPLETE` and `FORFEIT`. It is not
+independently editable.
+
+It matters because it, not the status, is what the rest of the app gates on:
+
+- `@create` refuses a new request while the student has **any** active
+  assignment;
+- `@claim` and `@drop` both refuse an inactive assignment with "Cannot update
+  inactive training assignment."
+
+The Edit page used to expose `active` as a checkbox beside the status dropdown,
+so the two could disagree, and both combinations broke something: Complete with
+Active ticked went on blocking the student's next training request, while an
+open status with Active unticked sat in the queue looking claimable and refusing
+every action. Nothing in the app used that second axis deliberately, so the
+checkbox was removed rather than reconciled.
+
+`2026_11_12_000000_sync_training_assignment_active_with_status` normalises rows
+written under the old form. The inline status change also sets the flag
+unconditionally, so any row the migration misses heals the next time its status
+is touched.
 
 The view heads the table with two counters, both computed in `@index`:
 

@@ -217,3 +217,54 @@ test('re-picking the same status dispatches nothing and writes nothing', functio
 
     expect($assignment->fresh()->updated_at->eq($before))->toBeTrue();
 });
+
+test('closing an assignment inline deactivates it', function () {
+    $assignment = inlineStatusAssignment(TrainingStatus::CHECKOUT);
+    $this->actingAs(User::factory()->create()->assignRole('instructor'));
+
+    Livewire::test(TrainingAssignmentStatus::class, ['assignment' => $assignment])
+        ->call('setStatus', TrainingStatus::COMPLETE->value)
+        ->assertHasNoErrors();
+
+    // Otherwise create() would keep refusing the student's next request, on the
+    // grounds that they still have an active assignment.
+    expect($assignment->fresh()->active)->toBeFalse();
+});
+
+test('forfeiting an assignment inline deactivates it', function () {
+    $assignment = inlineStatusAssignment(TrainingStatus::ACTIVE);
+    $this->actingAs(User::factory()->create()->assignRole('instructor'));
+
+    Livewire::test(TrainingAssignmentStatus::class, ['assignment' => $assignment])
+        ->call('setStatus', TrainingStatus::FORFEIT->value);
+
+    expect($assignment->fresh()->active)->toBeFalse();
+});
+
+test('reopening a closed assignment inline reactivates it', function () {
+    $assignment = inlineStatusAssignment(TrainingStatus::FORFEIT);
+    $assignment->update(['active' => false]);
+    $this->actingAs(User::factory()->create()->assignRole('instructor'));
+
+    Livewire::test(TrainingAssignmentStatus::class, ['assignment' => $assignment])
+        ->call('setStatus', TrainingStatus::ACTIVE->value)
+        ->assertHasNoErrors();
+
+    // Without this the row returns to the queue but claim()/drop() both refuse
+    // it with "Cannot update inactive training assignment."
+    expect($assignment->fresh()->active)->toBeTrue();
+});
+
+test('an inline change heals a row left inconsistent by the old Active checkbox', function () {
+    $assignment = inlineStatusAssignment(TrainingStatus::ACTIVE);
+    $assignment->update(['active' => false]);
+    $this->actingAs(User::factory()->create()->assignRole('instructor'));
+
+    Livewire::test(TrainingAssignmentStatus::class, ['assignment' => $assignment])
+        ->call('setStatus', TrainingStatus::SOLO->value);
+
+    // Open status with active = false is no longer a state the app can produce,
+    // but rows predating the checkbox's removal still carry it, and they sit in
+    // the queue refusing claim() and drop() until something sets the flag.
+    expect($assignment->fresh()->active)->toBeTrue();
+});

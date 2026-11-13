@@ -170,7 +170,6 @@ class TrainingAssignmentController extends Controller
 
         $validated = $request->validate([
             'instructorId' => 'string|nullable',
-            'active' => 'sometimes|in:on,1',
             'status' => 'int|required|min:1',
             'trainingType' => 'int|required',
             'notifyUser' => 'sometimes|in:on,1',
@@ -178,9 +177,17 @@ class TrainingAssignmentController extends Controller
 
         $trainingAssignment = TrainingAssignment::findOrFail($id);
         $trainingAssignment->instructor_id = $validated['instructorId'];
-        $trainingAssignment->active = $request->boolean('active');
         $trainingAssignment->status = $validated['status'];
         $trainingAssignment->training_type = $validated['trainingType'];
+
+        // `active` is derived from the status rather than edited on its own.
+        // It used to be a checkbox beside the status dropdown, which let the two
+        // disagree: an assignment marked Complete with Active still ticked kept
+        // blocking the student's next request (create() refuses one while any
+        // active assignment exists), and an open assignment with Active
+        // unticked sat in the queue refusing claim() and drop(). Nothing in the
+        // app used that second axis deliberately.
+        $trainingAssignment->active = ! TrainingStatus::from($validated['status'])->isClosed();
         $trainingAssignment->save();
 
         if ($validated['notifyUser'] ?? false) {
