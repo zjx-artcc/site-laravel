@@ -213,13 +213,13 @@
                                     <li><a class="block py-2 pl-8 pr-4 hover:bg-base-300" href="{{ route('loa.manage') }}">LOA Requests</a></li>
                                     <li><a class="block py-2 pl-8 pr-4 hover:bg-base-300" href="{{ route('logs.index') }}">Audit Log</a></li>
                                     <li><a class="block py-2 pl-8 pr-4 hover:bg-base-300" href="{{ route('roster-purge.index') }}">Purge Assistant</a></li>
+                                    <li><a class="block py-2 pl-8 pr-4 hover:bg-base-300" href="{{ route('admin.feedback.index') }}">Feedback Management</a></li>
                                 </ul>
                             </li>
                         @endif
                     </ul>
                 </nav>
-
-                {{-- Pinned to the bottom of the sidebar --}}
+                
                 @if(auth()->user()?->hasRole('admin'))
                     <div class="mt-auto shrink-0 border-t border-base-300 py-2">
                         <a href="#" class="flex items-center h-11 px-4 transition-colors hover:bg-base-300">
@@ -232,8 +232,6 @@
     </aside>
 
     <div class="min-w-0 flex-1 flex flex-col">
-
-        {{-- Mobile/tablet: sticky menu bar (hidden on desktop) --}}
         <div class="lg:hidden sticky top-0 z-30 bg-base-100 border-b border-base-300 shadow-sm">
             <button
                 type="button"
