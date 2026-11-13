@@ -197,9 +197,12 @@ test('moving between two open statuses does not reload', function () {
 
 test('moving between the two closed statuses does not reload', function () {
     $assignment = inlineStatusAssignment(TrainingStatus::COMPLETE);
+    // A closed row carries active = false, as every writer now leaves it.
+    $assignment->update(['active' => false]);
     $this->actingAs(User::factory()->create()->assignRole('instructor'));
 
-    // Both sit in the same section, so nothing moves.
+    // Both sit in the same section and neither touches the flag, so nothing
+    // outside this component changes.
     Livewire::test(TrainingAssignmentStatus::class, ['assignment' => $assignment])
         ->call('setStatus', TrainingStatus::FORFEIT->value)
         ->assertNotDispatched('training-assignment-moved');
@@ -267,4 +270,84 @@ test('an inline change heals a row left inconsistent by the old Active checkbox'
     // but rows predating the checkbox's removal still carry it, and they sit in
     // the queue refusing claim() and drop() until something sets the flag.
     expect($assignment->fresh()->active)->toBeTrue();
+});
+
+test('reopening a row is refused when the student already has a live assignment', function () {
+    $student = User::factory()->create(['rostered' => true]);
+
+    $forfeited = TrainingAssignment::create([
+        'user_id' => $student->id,
+        'training_type' => TrainingType::S2,
+        'status' => TrainingStatus::FORFEIT,
+        'active' => false,
+    ]);
+
+    // The student moved on and requested something else.
+    TrainingAssignment::create([
+        'user_id' => $student->id,
+        'training_type' => TrainingType::C1,
+        'status' => TrainingStatus::ACTIVE,
+        'active' => true,
+    ]);
+
+    $this->actingAs(User::factory()->create()->assignRole('instructor'));
+
+    Livewire::test(TrainingAssignmentStatus::class, ['assignment' => $forfeited])
+        ->call('setStatus', TrainingStatus::ACTIVE->value)
+        ->assertHasErrors('status');
+
+    // Two live rows would let two trainers claim the same student and would
+    // sidestep create()'s one-active-assignment rule.
+    expect($forfeited->fresh()->status)->toBe(TrainingStatus::FORFEIT)
+        ->and($forfeited->fresh()->active)->toBeFalse();
+});
+
+test('reopening is allowed when the student has no other live assignment', function () {
+    $assignment = inlineStatusAssignment(TrainingStatus::FORFEIT);
+    $assignment->update(['active' => false]);
+    $this->actingAs(User::factory()->create()->assignRole('instructor'));
+
+    Livewire::test(TrainingAssignmentStatus::class, ['assignment' => $assignment])
+        ->call('setStatus', TrainingStatus::ACTIVE->value)
+        ->assertHasNoErrors();
+
+    expect($assignment->fresh()->active)->toBeTrue();
+});
+
+test('a closed sibling does not block reopening', function () {
+    $student = User::factory()->create(['rostered' => true]);
+
+    $first = TrainingAssignment::create([
+        'user_id' => $student->id,
+        'training_type' => TrainingType::S2,
+        'status' => TrainingStatus::FORFEIT,
+        'active' => false,
+    ]);
+
+    TrainingAssignment::create([
+        'user_id' => $student->id,
+        'training_type' => TrainingType::S1,
+        'status' => TrainingStatus::COMPLETE,
+        'active' => false,
+    ]);
+
+    $this->actingAs(User::factory()->create()->assignRole('instructor'));
+
+    Livewire::test(TrainingAssignmentStatus::class, ['assignment' => $first])
+        ->call('setStatus', TrainingStatus::ACTIVE->value)
+        ->assertHasNoErrors();
+
+    expect($first->fresh()->active)->toBeTrue();
+});
+
+test('waking a parked row reloads the page even between two open statuses', function () {
+    $assignment = inlineStatusAssignment(TrainingStatus::ACTIVE);
+    $assignment->update(['active' => false]);
+    $this->actingAs(User::factory()->create()->assignRole('instructor'));
+
+    // The row keeps its section, but its Inactive marker, its Claim action and
+    // its place in the counters are all rendered by the table, not here.
+    Livewire::test(TrainingAssignmentStatus::class, ['assignment' => $assignment])
+        ->call('setStatus', TrainingStatus::SOLO->value)
+        ->assertDispatched('training-assignment-moved');
 });

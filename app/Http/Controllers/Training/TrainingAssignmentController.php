@@ -95,12 +95,18 @@ class TrainingAssignmentController extends Controller
         // Headline counters, deliberately independent of the search/type filters
         // so they read as a stable picture of the queue rather than shifting
         // with whatever is typed in the search box. Both ignore completed and
-        // forfeited assignments: those are out of training either way.
+        // forfeited assignments: those are out of training either way. They also
+        // require `active`, which excludes the rows parked under the Edit page's
+        // old Active checkbox — those are still listed, marked Inactive, but
+        // claim() and drop() refuse them, so counting them as requests waiting
+        // to be picked up would overstate the queue.
         $pendingCount = TrainingAssignment::whereNull('instructor_id')
+            ->where('active', true)
             ->whereNotIn('status', $closedStatuses)
             ->count();
 
         $inTrainingCount = TrainingAssignment::whereNotNull('instructor_id')
+            ->where('active', true)
             ->whereNotIn('status', $closedStatuses)
             ->count();
 

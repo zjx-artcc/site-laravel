@@ -252,13 +252,13 @@ record (there is a `TODO: make store` note on the route):
   same effect on it as `@destroy` does. Re-picking the status the assignment
   already has is a no-op (no write, no log entry, no event).
 
-  When the new status crosses the open/closed line (to or from `COMPLETE`/
-  `FORFEIT`) the component dispatches a `training-assignment-moved` browser
-  event and an Alpine listener reloads the page. That is the only case that
-  needs it: the row's section, the group counts and the total are all rendered
-  by the server outside this component, and a status change can only move a row
-  across that line — grouping is by training type, which a status change never
-  touches. The four open statuses just update the badge in place.
+  The component dispatches a `training-assignment-moved` browser event, and an
+  Alpine listener reloads the page, in the two cases where something outside the
+  component changes: the status crossed the open/closed line (so the row's
+  section and the group counts change), or `active` changed (so the row's
+  Inactive marker, its Claim action and its place in the counters change). A
+  change between two open statuses on a row that was already live just repaints
+  the badge in place.
 
   The menu is `position: fixed` with coordinates measured by Alpine, because the
   table lives in an `overflow-x-auto` wrapper that would clip a normally
@@ -319,6 +319,18 @@ queue for a student who has since re-requested, or quietly exempt a dormant
 observer from the roster purge (`RosterPurgeController` builds its exemption list
 from `active = true`). Those rows heal the next time someone sets the status,
 since both writers set the flag unconditionally.
+
+Until they do, a parked row is listed with an **Inactive** badge beside its
+status, offers neither Claim nor Drop in its Actions menu (both would error),
+and is left out of the two headline counters. It stays in the list rather than
+being filtered out because nothing else links to a parked row — the queue is the
+only way to reach one.
+
+Reopening a parked or closed row is **refused** when the student already has a
+live assignment elsewhere: forfeit an S2, request a C1, reopen the S2, and the
+student would hold two active rows, which lets two trainers claim them and
+sidesteps the one-active-assignment rule in `@create`. The cell shows "This
+student already has an active training assignment." and writes nothing.
 
 The view heads the table with two counters, both computed in `@index`:
 

@@ -54,6 +54,17 @@ class TrainingAssignmentStatus extends Component
             return;
         }
 
+        // Waking a row up gives the student a second live assignment if they
+        // already have one, which is how create()'s one-active-assignment rule
+        // gets bypassed: forfeit an S2, request a C1, then reopen the S2 and
+        // two trainers can claim the same student. Refuse rather than guess
+        // which row the instructor meant.
+        if (! $this->assignment->active && ! $new->isClosed() && $this->studentHasAnotherActiveAssignment()) {
+            $this->addError('status', 'This student already has an active training assignment.');
+
+            return;
+        }
+
         $this->assignment->status = $new;
 
         // `active` is the flag the rest of the app actually gates on, not the
@@ -68,15 +79,27 @@ class TrainingAssignmentStatus extends Component
 
         $this->assignment->save();
 
-        // A status change can only move a row across the open/closed line: the
-        // table groups by training type (untouched here) and orders by date, so
-        // the four open statuses just need the badge they already re-rendered.
-        // Crossing the line does change the row's section, the group counts and
-        // the total — all server-rendered outside this component — so the page
-        // has to come back from the server.
-        if ($new->isClosed() !== $was->isClosed()) {
+        // The page has to come back from the server whenever something outside
+        // this component changes. Crossing the open/closed line moves the row to
+        // another section and changes the group counts; waking a parked row up
+        // drops its "Inactive" marker, restores its Claim action and adds it to
+        // the headline counters. Both are rendered by the table, not here. A
+        // change between two open statuses on a row that was already active
+        // only repaints the badge, which has already happened.
+        if ($new->isClosed() !== $was->isClosed() || $this->assignment->wasChanged('active')) {
             $this->dispatch('training-assignment-moved');
         }
+    }
+
+    /**
+     * Whether the student has a live assignment other than this one.
+     */
+    protected function studentHasAnotherActiveAssignment(): bool
+    {
+        return TrainingAssignment::where('user_id', $this->assignment->user_id)
+            ->where('active', true)
+            ->whereKeyNot($this->assignment->getKey())
+            ->exists();
     }
 
     public function render()

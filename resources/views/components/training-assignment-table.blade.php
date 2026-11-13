@@ -79,6 +79,16 @@
                     @else
                         <x-training-assignment-status-label :status="$trainingAssignment->status"/>
                     @endif
+
+                    {{-- An open status with `active = false` is a row parked
+                         under the Edit page's old Active checkbox. Nothing
+                         creates these any more, but the ones already in the
+                         database still refuse claim() and drop(), so they say
+                         so rather than showing a green badge and a Claim action
+                         that errors. --}}
+                    @if(! $trainingAssignment->active && ! $trainingAssignment->status->isClosed())
+                        <span class="badge badge-ghost badge-sm whitespace-nowrap" title="Parked: cannot be claimed or dropped until its status is set again">Inactive</span>
+                    @endif
                 </td>
                 <td>
                     <div x-data="{
@@ -111,7 +121,10 @@
                                 :style="`top: ${top}px; left: ${left}px;`"
                                 class="fixed text-base-content menu bg-base-100 rounded-box z-50 w-40 p-2 shadow-sm border border-base-300 min-w-max">
                                 @haspermission('claim students')
-                                @if (is_null($trainingAssignment->instructor))
+                                {{-- claim() and drop() both refuse an inactive
+                                     assignment, so a parked row offers neither
+                                     instead of erroring on the attempt. --}}
+                                @if (is_null($trainingAssignment->instructor) && $trainingAssignment->active)
                                     <li>
                                         <form
                                             action="{{route("training-assignments.claim", ["assignment" => $trainingAssignment->id])}}"
@@ -125,7 +138,7 @@
                                 @endif
                                 @endhaspermission
 
-                                @if($trainingAssignment->instructor_id == Auth::user()->id)
+                                @if($trainingAssignment->instructor_id == Auth::user()->id && $trainingAssignment->active)
                                     <li>
                                         <form
                                             action="{{route("training-assignments.drop", ["assignment" => $trainingAssignment->id])}}"

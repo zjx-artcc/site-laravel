@@ -111,17 +111,20 @@ test('the index counts unassigned open requests', function () {
         ->assertSeeInOrder(['Total Requests:', '3']);
 });
 
-test('inactive assignments are listed too, and counted in the total', function () {
+test('inactive assignments are listed, but not counted as requests', function () {
     $active = makeAssignment('2026-01-01 00:00:00');
     $inactive = makeAssignment('2026-01-02 00:00:00');
     $inactive->update(['active' => false]);
 
+    // Listed so staff can still reach and fix them, since nothing else links
+    // to a parked row, but claim() refuses them so they are not requests
+    // waiting to be picked up.
     $this->actingAs(orderingStaff())
         ->get(route('training-assignments.index'))
         ->assertOk()
-        ->assertSeeInOrder(['Total Requests:', '2'])
         ->assertSee('users/'.$active->user_id, false)
-        ->assertSee('users/'.$inactive->user_id, false);
+        ->assertSee('users/'.$inactive->user_id, false)
+        ->assertSeeInOrder(['Total Requests:', '1', 'Students In Training:']);
 });
 
 test('the removed show-inactive parameter is simply ignored', function () {
@@ -133,7 +136,7 @@ test('the removed show-inactive parameter is simply ignored', function () {
     $this->actingAs(orderingStaff())
         ->get(route('training-assignments.index', ['showInactive' => 'on']))
         ->assertOk()
-        ->assertSeeInOrder(['Total Requests:', '2']);
+        ->assertSeeInOrder(['Total Requests:', '1', 'Students In Training:']);
 });
 
 test('rows are grouped under one heading per training type, C1 first', function () {
@@ -439,4 +442,60 @@ test('page one is rendered rather than redirected when the queue is empty', func
         ->get(route('training-assignments.index'))
         ->assertOk()
         ->assertSee('There are no training assignments.');
+});
+
+test('a parked row is marked Inactive in the table', function () {
+    $parked = makeAssignment('2026-01-01 00:00:00');
+    $parked->update(['active' => false]);
+
+    $this->actingAs(orderingStaff())
+        ->get(route('training-assignments.index'))
+        ->assertOk()
+        ->assertSee('Inactive');
+});
+
+test('a live row carries no Inactive marker', function () {
+    makeAssignment('2026-01-01 00:00:00');
+
+    $this->actingAs(orderingStaff())
+        ->get(route('training-assignments.index'))
+        ->assertOk()
+        ->assertDontSee('Inactive');
+});
+
+test('the counters leave parked rows out', function () {
+    makeAssignment('2026-01-01 00:00:00');
+    makeAssignment('2026-01-02 00:00:00')->update(['active' => false]);
+
+    // Both are listed, but only the live one is waiting to be claimed.
+    $this->actingAs(orderingStaff())
+        ->get(route('training-assignments.index'))
+        ->assertOk()
+        ->assertSeeInOrder(['Total Requests:', '1']);
+});
+
+test('a parked row offers no Claim action', function () {
+    $staff = orderingStaff();
+    $staff->assignRole('instructor');
+
+    $parked = makeAssignment('2026-01-01 00:00:00');
+    $parked->update(['active' => false]);
+
+    // claim() refuses an inactive assignment, so the menu must not offer it.
+    $this->actingAs($staff)
+        ->get(route('training-assignments.index'))
+        ->assertOk()
+        ->assertDontSee(route('training-assignments.claim', ['assignment' => $parked->id]), false);
+});
+
+test('a live row still offers Claim', function () {
+    $staff = orderingStaff();
+    $staff->assignRole('instructor');
+
+    $live = makeAssignment('2026-01-01 00:00:00');
+
+    $this->actingAs($staff)
+        ->get(route('training-assignments.index'))
+        ->assertOk()
+        ->assertSee(route('training-assignments.claim', ['assignment' => $live->id]), false);
 });
