@@ -5,10 +5,12 @@ namespace App\Models;
 use App\Enums\VisitRequestStatus;
 use Illuminate\Database\Eloquent\Model;
 use Laravel\Scout\Searchable;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class VisitorRequest extends Model
 {
-    use Searchable;
+    use LogsActivity, Searchable;
 
     protected $fillable = [
         'user_id',
@@ -30,6 +32,11 @@ class VisitorRequest extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()->logOnly(['user_id', 'status', 'reason', 'admin_notes']);
     }
 
     public function toSearchableArray(): array

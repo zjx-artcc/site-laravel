@@ -87,6 +87,7 @@ These are functional defects found while documenting. Grouped by system. (Traini
 - **7.9 Commented-out Socialite registration.** `app/Providers/AppServiceProvider.php` has an older `Socialite::extend('vatsim', …)` block commented above the active one. Delete it.
 - **7.10 Test placeholders / starter stubs.** `tests/Pest.php` still defines a stub `function something()`; `tests/Unit/ExampleTest.php` and `tests/Feature/ExampleTest.php` are starter placeholders. Remove.
 - **7.11 Unused event view.** `resources/views/events/manage.blade.php` appears unused — `EventController::manage()` returns `manage-events.index`. (Events WIP.)
+- **7.12 `EventPositionAssignment` model is an empty, unused stub.** `app/Models/EventPositionAssignment.php` is just `class EventPositionAssignment {}` — not even an Eloquent model. Nothing references it; actual position assignment is tracked on `EventPosition` itself (`user_id`/`assigned_position`/`position_status`). Delete it, or build it out if a separate assignment-history table was intended. (Events WIP.)
 
 ---
 

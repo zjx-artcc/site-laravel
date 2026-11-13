@@ -5,11 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 use Str;
 
 class CertificationFacility extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     protected $fillable = [
         'identifier',
@@ -28,5 +30,11 @@ class CertificationFacility extends Model
     public function certificationLevels()
     {
         return $this->hasMany(CertificationLevel::class, 'facility_id')->orderBy('level', 'desc');
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['identifier', 'name', 'order']);
     }
 }

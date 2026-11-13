@@ -4,9 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class EventPosition extends Model
 {
+    use LogsActivity;
+
     protected $fillable = [
         'event_id',
         'user_id',
@@ -60,5 +64,12 @@ class EventPosition extends Model
             ->unique(fn ($position) => strtoupper($position))
             ->reject(fn ($position) => in_array(strtoupper($position), $keep, true))
             ->values();
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['event_id', 'user_id', 'requested_position', 'assigned_position', 'position_status'])
+            ->logOnlyDirty();
     }
 }

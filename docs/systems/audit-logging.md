@@ -17,6 +17,9 @@ need to add auditing to a model or work on the audit-log viewer.
   `Spatie\Activitylog\Traits\LogsActivity` trait and defining
   `getActivitylogOptions()`, which declares exactly which attributes to log via
   `LogOptions::defaults()->logOnly([...])`.
+- **Scheduled jobs write entries directly** with Spatie's `activity()` helper
+  rather than a model trait, so a sync that ran successfully is visible in the
+  viewer and not only in the log file. See [Job entries](#job-entries).
 - **The viewer is admin-only** and lets staff filter by controller (CID) and by
   record type, then either browse the paginated log or stream a CSV export.
 
@@ -30,9 +33,94 @@ need to add auditing to a model or work on the audit-log viewer.
 | `TrainingAssignment` | `app/Models/TrainingAssignment.php` | `user_id`, `instructor_id`, `status` |
 | `TrainingTicket` | `app/Models/TrainingTicket.php` | `user_id`, `instructor_id`, `session_date`, `duration`, `movements`, `score`, `notes`, `location`, `ots_status` |
 | `StatisticsPrefixes` | `app/Models/StatisticsPrefixes.php` | `name` |
+| `Publication` | `app/Models/Publication.php` | `name`, `description`, `version`, `publication_category_id`, `original_filename` |
+| `PublicationCategory` | `app/Models/PublicationCategory.php` | `title`, `description`, `display_order`, `show_in_nav` |
+| `VisitorRequest` | `app/Models/VisitorRequest.php` | `user_id`, `status`, `reason`, `admin_notes` |
+| `SoloCert` | `app/Models/SoloCert.php` | `user_id`, `issued_by_id`, `position`, `revoked` |
+| `ManualContributor` | `app/Models/ManualContributor.php` | `github_username`, `display_name`, `section`, `note` |
+| `Loa` | `app/Models/Loa.php` | `user_id`, `start_date`, `end_date`, `status`, `response` |
+| `Faq` | `app/Models/Faq.php` | `category`, `question`, `answer`, `sort_order`, `is_published` |
+| `FaqSetting` | `app/Models/FaqSetting.php` | `key`, `value` |
+| `StaffingRequest` | `app/Models/StaffingRequest.php` | `user_id`, `name`, `description`, `requested_at`, `closed` |
+| `Event` | `app/Models/Event.php` | `title`, `description`, `start`, `end`, `type`, `hidden`, `positions_locked`, `published`, `archived`, `archived_at` |
+| `EventPosition` | `app/Models/EventPosition.php` | `event_id`, `user_id`, `requested_position`, `assigned_position`, `position_status` |
+| `EventPositionPreset` | `app/Models/EventPositionPreset.php` | `name`, `positions` |
+| `Feedback` | `app/Models/Feedback.php` | `status` |
+| `CertificationFacility` | `app/Models/CertificationFacility.php` | `identifier`, `name`, `order` |
+| `CertificationLevel` | `app/Models/CertificationLevel.php` | `facility_id`, `level`, `name`, `abbreviation` |
+| `News` | `app/Models/News.php` | `title`, `content`, `published_at` |
+| `AtcBooking` | `app/Models/AtcBooking.php` | `user_id`, `position`, `start`, `end`, `description` |
 
-All four use `LogOptions::defaults()`, so only the listed attributes are logged
-and (by Spatie's defaults) empty diffs are not recorded.
+All use `LogOptions::defaults()`, so only the listed attributes are logged.
+`Publication`, `PublicationCategory`, `Event`, `EventPosition`, `Feedback`, and
+`News` additionally call `logOnlyDirty()` — useful for models where a save
+often only touches one field (e.g. toggling `Event::published`, or a feedback
+status transition), so the log shows just what changed rather than the full
+attribute set on every save.
+
+`Feedback::release()` (`app/Http/Controllers/FeedbackController.php`) is a
+partial exception: it uses a conditional `Feedback::whereKey(...)->update(...)`
+to avoid a release race, which — like the examples in the gotchas below —
+bypasses Eloquent events. The controller writes a manual `activity()` entry
+(`Feedback released`) right after, so `stash`/`unstash` are caught by the
+trait but `release` is logged explicitly.
+
+`UserCertification` (`app/Models/UserCertification.php`) is audited
+differently: instead of the `LogsActivity` trait, a `static::created`/
+`static::deleted` hook in `booted()` writes a `Certification issued: …` /
+`Certification revoked: …` entry with the certified `User` as the subject.
+This only fires for explicit grants/revokes through Eloquent — a DB-level
+cascade delete (e.g. removing the owning facility/level) bypasses it.
+
+Note that `LogOptions::defaults()` leaves `logOnlyDirty` **false** and
+`submitEmptyLogs` **true**, so a model without `logOnlyDirty()` records an entry
+on every save, even when none of the logged attributes changed.
+
+Changes made through the query builder rather than Eloquent — `upsert()`,
+`Model::where(...)->update(...)` — do **not** fire model events and are therefore
+never recorded. This is why roster membership changes do not appear here:
+`SyncRoster` uses `User::upsert()` and a mass `update()`.
+
+### Job entries
+
+Sync jobs previously logged only on failure, so a job that had silently stopped
+running looked the same as one that ran and found nothing to do. Each now writes
+a completion entry with Spatie's `activity()` helper:
+
+```php
+activity()->withProperties(['attributes' => [
+    'sessions_accepted' => $accepted,
+    'sessions_skipped' => $skipped,
+]])->log('VATSIM statistics sync page complete');
+```
+
+| Job | Entry | Notes |
+| --- | --- | --- |
+| `SyncRoster` | `Roster sync complete` | Plus one `Removed from roster` entry per departing controller, and one `Staff position assigned` / `Removed from staff position` entry per staff title change (diffed before/after `Staff::truncate()`, for the same reason roster departures are diffed), each with that user as the subject |
+| `SyncVatsimSessions` | `VATSIM statistics sync page complete` | One entry per paginated API page: offset/next offset, sessions accepted/skipped, recompute operations |
+| `SyncTrainingTickets` | `Training ticket sync complete` | Tickets pending/synced/failed |
+| `UpdateOnlineControllers` | `Online controller sync failed` | **Failure only** — see below |
+| `AddUserToVisitingRoster` | `Added user to visiting roster` / `Failed to add user to visiting roster` | Subject is the affected `User`, when found |
+
+`App\Livewire\SectorMap::save()` is logged the same way, outside the job
+table: it replaces a whole split's `CenterSector` rows (delete then recreate),
+which also bypasses Eloquent events, so it writes one `Sector map split saved`
+entry per split touched instead of one per row.
+
+These entries have **no `event`** (the viewer falls back to `description` for
+the action badge), **no causer** (they run unattended, so the Who column shows
+"System"), and — except for roster removals and visiting-roster entries — **no
+subject**, so the Record column is empty and they are not reachable via the
+record-type filter.
+
+`UpdateOnlineControllers` runs every minute, so a success entry on every run
+would add ~1,400 rows a day for no benefit — only its failure paths (the
+request throwing, or a 2xx response with an unparseable payload) write an
+audit entry. Its failures also go to the application log at `error` level.
+Note that `Http::retry()` defaults to `$throw = true` in this Laravel version,
+so a non-2xx response is turned into a thrown `RequestException` before the
+job's own `$onlineData->failed()` check ever runs — that check (and its audit
+entry) is only reachable via a 2xx response with a non-array payload.
 
 ### The `activity_log` table
 
@@ -94,6 +182,22 @@ which flattens the `properties` diff into `Field: from -> to` (for updates) or
 using Laravel's `rescue()` so a missing/renamed subject class does not break the
 export; causers with no record are shown as `System`.
 
+## Debug logging
+
+The audit log records *what* happened. To see *why* a sync behaved as it did,
+turn on debug output in the application log:
+
+```dotenv
+LOG_LEVEL=debug
+```
+
+`SyncRoster` logs the endpoint it is calling and the membership diff
+(`roster_size`, `departed_cids`); `SyncVatsimSessions` logs each page it
+requests/receives and the prefixes and rostered-controller count it filters
+against. This goes to whatever `LOG_STACK` is shipping to, not to the audit
+log. Set it back to `info` afterwards — if the `discord` channel is in
+`LOG_STACK`, debug output ships there too.
+
 ## Permissions / middleware
 
 Both audit-log routes live in the `admin` route group (guarded by
@@ -127,9 +231,16 @@ So a viewer must have both `view dashboard` and `view audit logs`.
 ## Gotchas
 
 - **Only the `logOnly()` attributes are recorded.** Changing an attribute that
-  is not in a model's `getActivitylogOptions()` list produces no log entry, and
-  for updates Spatie's defaults skip entries with an empty diff. If you add a
-  column that should be audited, add it to the model's `logOnly()` list.
+  is not in a model's `getActivitylogOptions()` list produces no log entry. If
+  you add a column that should be audited, add it to the model's `logOnly()`
+  list. Note that entries are *not* skipped on an empty diff unless the model
+  opts in with `logOnlyDirty()`.
+- **Query-builder writes are invisible.** `upsert()` and
+  `Model::where(...)->update(...)` bypass Eloquent events, so nothing is logged.
+  Use model saves for anything that needs auditing.
+- **Deletions store the row under `old`, not `attributes`.** The viewer and
+  export merge both keys, so they render correctly, but code reading
+  `properties['attributes']` directly will find nothing for a `deleted` event.
 - **Stored subject/causer types can outlive their classes.** The viewer avoids
   eager-loading subjects, and both the viewer and export tolerate model classes
   that no longer exist (`rescue()` around `$log->subject`). Do not add code that
@@ -140,3 +251,11 @@ So a viewer must have both `view dashboard` and `view audit logs`.
   user as subject/causer.
 - **Timestamps are emitted in UTC/Zulu** in the export (`created_at->utc()`),
   regardless of the app timezone.
+- **Role/permission changes have no dedicated audit coverage.** There is no
+  admin UI for editing `spatie/laravel-permission` roles directly — the only
+  place roles are assigned/removed is `SyncRoster` (`assignRoles()`,
+  `clearUserRoles()`, `syncRosteredRole()`), driven by VATUSA staff titles and
+  roster membership. That's covered indirectly: a staff title change shows up
+  as `Staff position assigned` / `Removed from staff position` (see Job
+  entries above), but the resulting `assignRole()`/`removeRole()` calls
+  themselves, and the `rostered` role toggle, are not separately logged.

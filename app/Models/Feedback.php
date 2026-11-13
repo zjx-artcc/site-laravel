@@ -7,10 +7,12 @@ use App\Enums\FeedbackStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Laravel\Scout\Searchable;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Feedback extends Model
 {
-    use HasFactory, Searchable;
+    use HasFactory, LogsActivity, Searchable;
 
     protected $table = 'feedback';
 
@@ -62,5 +64,12 @@ class Feedback extends Model
             'experience' => $this->experience->value,
             'status' => $this->status->value,
         ];
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['status'])
+            ->logOnlyDirty();
     }
 }

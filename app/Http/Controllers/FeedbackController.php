@@ -71,6 +71,12 @@ class FeedbackController extends Controller
 
         $feedback->refresh();
 
+        // The conditional update above bypasses Eloquent events (so LogsActivity
+        // can't pick it up), so the release is logged explicitly here.
+        activity()->performedOn($feedback)
+            ->withProperties(['attributes' => ['status' => $feedback->status->value]])
+            ->log('Feedback released');
+
         SendFeedbackToWebhook::dispatch($feedback);
         Mail::to($feedback->user)->queue(new FeedbackReleased($feedback));
         Mail::to($feedback->controller)->queue(new FeedbackReceived($feedback));
