@@ -310,10 +310,15 @@ open status with Active unticked sat in the queue looking claimable and refusing
 every action. Nothing in the app used that second axis deliberately, so the
 checkbox was removed rather than reconciled.
 
-`2026_11_12_000000_sync_training_assignment_active_with_status` normalises rows
-written under the old form. The inline status change also sets the flag
-unconditionally, so any row the migration misses heals the next time its status
-is touched.
+`2026_11_12_000000_sync_training_assignment_active_with_status` fixes the rows
+written under the old form that block a student — a closed status with
+`active = true` — and deliberately leaves the mirror case alone. An open status
+with `active = false` may have been set on purpose, to park a request without
+marking it Forfeit, and reactivating it could put a second live request in the
+queue for a student who has since re-requested, or quietly exempt a dormant
+observer from the roster purge (`RosterPurgeController` builds its exemption list
+from `active = true`). Those rows heal the next time someone sets the status,
+since both writers set the flag unconditionally.
 
 The view heads the table with two counters, both computed in `@index`:
 
