@@ -251,6 +251,8 @@
         </div>
 
         <main class="min-w-0 flex-1 p-4 sm:p-6">
+            <x-alerts/>
+
             @yield('body')
         </main>
 

@@ -88,6 +88,13 @@ Blade views live under `resources/views/`, with page layouts in `resources/views
 - `admin.blade.php` — the admin panel layout.
 - `profile.blade.php` — the user-profile layout.
 
+`main.blade.php` and `admin.blade.php` are independent — `admin.blade.php` is a
+full document of its own, not an extension of `main`. Anything both need has to
+be included in both: flash and validation messages are the `x-alerts` component
+for exactly that reason, after `admin.blade.php` spent several releases with no
+alert markup at all and silently swallowed every `with('success')` and
+`with('error')` on every admin page.
+
 ## Routing
 
 **All routing is defined in `routes/web.php`.** There is no `routes/api.php`. Routes are
