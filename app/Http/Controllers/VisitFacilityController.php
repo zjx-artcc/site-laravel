@@ -76,7 +76,7 @@ class VisitFacilityController extends Controller
             'status' => VisitRequestStatus::PENDING,
         ]);
 
-        Mail::to($visitRequest->user->email)->bcc(['atm@zjxartcc.org', 'datm@zjxartcc.org'])->queue(new VisitorRequestReceived($visitRequest));
+        Mail::to($visitRequest->user->email)->bcc([config('app.vatusa_facility').'-atm@vatusa.net', config('app.vatusa_facility').'-datm@vatusa.net'])->queue(new VisitorRequestReceived($visitRequest));
         Log::info('New visit request submitted for user '.$visitRequest->user_id.' by '.Auth::user()->id);
 
         return redirect()->route('visit.index')->with('success', 'Visit request submitted successfully.');
@@ -101,7 +101,7 @@ class VisitFacilityController extends Controller
         $visitRequest->save();
 
         Log::info('Visit request for user '.$visitRequest->user_id.' denied. Reason: '.$validated['reason'].' Admin Notes: '.($validated['adminNotes'] ?? 'N/A').' by '.Auth::user()->id);
-        Mail::to($visitRequest->user->email)->bcc(['atm@zjxartcc.org', 'datm@zjxartcc.org'])->queue(new VisitorRequestRejected($visitRequest));
+        Mail::to($visitRequest->user->email)->bcc([config('app.vatusa_facility').'-atm@vatusa.net', config('app.vatusa_facility').'-datm@vatusa.net'])->queue(new VisitorRequestRejected($visitRequest));
 
         return redirect()->back()->with('success', 'Visit request denied.');
     }
@@ -133,7 +133,7 @@ class VisitFacilityController extends Controller
         $visitRequest->user->rostered = true;
         $visitRequest->user->save();
 
-        Mail::to($visitRequest->user->email)->bcc(['atm@zjxartcc.org', 'datm@zjxartcc.org'])->queue(new VisitorRequestAccepted($visitRequest));
+        Mail::to($visitRequest->user->email)->bcc([config('app.vatusa_facility').'-atm@vatusa.net', config('app.vatusa_facility').'-datm@vatusa.net'])->queue(new VisitorRequestAccepted($visitRequest));
         AddUserToVisitingRoster::dispatch($visitRequest->user->id);
         Log::info('Visit request for user '.$visitRequest->user_id.' approved. Operating Initials: '.$validated['operatingInitials'].' Admin Notes: '.($validated['adminNotes'] ?? 'N/A').' by '.Auth::user()->id);
 

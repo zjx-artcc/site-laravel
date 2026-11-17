@@ -1,11 +1,15 @@
 @extends('mail.layout')
 
-@section('content')
-    <p>Hello {{ $trainingTicket->student->first_name }},</p>
-    
-    <p>A training ticket has been filed by <strong>{{ $trainingTicket->instructor->name }}</strong>. You can view it on the website using <a style='color: blue; text-decoration: underline;' href="{{ route('training-tickets.show', $trainingTicket) }}">this link.</a></p>
+@section('heading', 'Training Ticket Created')
 
-    @if($trainingTicket->certificationIssuedLabel())
+@section('content')
+    <p>Dear {{ $trainingTicket->student->name }},</p>
+
+    <p>A training ticket has been filed by <strong>{{ $trainingTicket->instructor->name }}</strong>. You can view it on <a href="{{ route('training-tickets.show', $trainingTicket) }}" class="link" style="color: #0080C2;">the website</a>.</p>
+
+    @if ($trainingTicket->certificationIssuedLabel())
         <p><strong>{{ $trainingTicket->certificationIssuedLabel() }}</strong></p>
     @endif
+
+    <p>If you have any questions about this ticket, please contact your instructor or the Training Administrator at <a href="mailto:zjx-ta@vatusa.net" class="link" style="color: #0080C2;">zjx-ta@vatusa.net</a>.</p>
 @endsection

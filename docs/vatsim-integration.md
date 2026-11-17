@@ -276,6 +276,23 @@ All nine mailables are plain `Mailable`s that render a Blade view in
 | `VisitorRequestAccepted` | `VisitFacilityController::approve()` — to the requester, bcc the ATM/DATM addresses. |
 | `VisitorRequestRejected` | `VisitFacilityController::deny()` — to the requester, bcc the ATM/DATM addresses. |
 
+#### Email layout and components
+
+Every mail view extends `resources/views/mail/layout.blade.php` and fills two sections:
+`heading` (the title shown under the logo in the blue header) and `content` (the letter
+body, starting with `Dear {name},`). The layout adds the "Regards, The vZJX Staff"
+sign-off and the blue footer, matching the style of the previous zjxartcc.org site's
+emails.
+
+The layout is email-client safe: table-based, inline styles, no external CSS/JS, a
+centred 600px column that shrinks to the screen on mobile, and a
+`prefers-color-scheme: dark` (plus Outlook `[data-ogsc]`/`[data-ogsb]`) override block
+for dark mode. Light-mode colours live inline; give links `class="link"
+style="color: #0080C2;"` so they also pick up the dark-mode link colour.
+
+The logo is attached with `$message->embed()`, so it only appears in actually-sent mail
+(e.g. the mail sandbox), not when a Mailable is returned from a route for preview.
+
 ## Dev-only manual triggers
 
 `routes/web.php` registers three helper routes gated to the `development` and

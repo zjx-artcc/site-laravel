@@ -1,80 +1,88 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $subject ?? 'Notification' }}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="x-apple-disable-message-reformatting">
+    <meta name="color-scheme" content="light dark">
+    <meta name="supported-color-schemes" content="light dark">
+    <title>{{ $subject ?? config('app.name') }}</title>
+    {{--
+        Email clients ignore external CSS/JS, so everything is table-based with inline styles
+        (inline values are the light-mode colours). The <style> block only adds dark-mode
+        overrides for clients that support them. Mirrors the old site's MJML emails: blue
+        header with logo and title, white letter body, blue footer, 600px wide.
+    --}}
     <style>
-        body { font-family: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif; }
-        
-        /* EMAIL SAFE COLORS (Converted from your OKLCH config)
-           Primary:   #4F46E5 (Matches your blue-ish purple)
-           Secondary: #FB923C (Matches your apricot/orange)
-           Accent:    #22D3EE (Matches your teal)
-           Base-100:  #F9FAFB (Your almost-white background)
-           Base-200:  #F3F4F6 (Your light gray background)
-           Content:   #1F2937 (Your dark text)
-        */
+        :root { color-scheme: light dark; supported-color-schemes: light dark; }
+        body { margin: 0; padding: 0; width: 100% !important; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+        table { border-collapse: collapse; }
+        img { border: 0; outline: none; text-decoration: none; }
+        .content p { margin: 0 0 16px; }
 
-        .bg-base-100 { background-color: #F9FAFB; }
-        .bg-base-200 { background-color: #F3F4F6; }
-        .text-base-content { color: #1F2937; }
-        
-        .btn-primary { 
-            background-color: #0080C2 !important; 
-            color: #ffffff !important; 
-            border-radius: 0.25rem !important; /* Your --radius-selector */
-            padding: 12px 24px;
-            text-decoration: none;
-            display: inline-block;
+        @media (prefers-color-scheme: dark) {
+            .bg-page { background-color: #121212 !important; }
+            .bg-body { background-color: #1E1E1E !important; }
+            .text-body { color: #E5E5E5 !important; }
+            .link { color: #4DB8F0 !important; }
         }
 
-        .text-primary { color: #0080C2 !important; }
-        .text-secondary { color: #FB923C !important; }
-        
-        /* Layout resets */
-        .wrapper { width: 100%; background-color: #F3F4F6; padding: 40px 0; padding-top: 0px;}
-        .content-box { 
-            background-color: #F9FAFB; 
-            margin: 0 auto; 
-            width: 100%; 
-            max-width: 600px; 
-            border-radius: 0.25rem; /* Your --radius-box */
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-        }
+        /* Outlook.com / Outlook apps dark mode */
+        [data-ogsc] .text-body { color: #E5E5E5 !important; }
+        [data-ogsc] .link { color: #4DB8F0 !important; }
+        [data-ogsb] .bg-page { background-color: #121212 !important; }
+        [data-ogsb] .bg-body { background-color: #1E1E1E !important; }
     </style>
 </head>
-<body style="background-color: #F3F4F6; margin: 0; padding: 0;">
+<body class="bg-page" style="margin: 0; padding: 0; background-color: #FFFFFF;">
+    <table role="presentation" class="bg-page" width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#FFFFFF" style="width: 100%; background-color: #FFFFFF;">
+        <tr>
+            <td align="center" style="padding: 0;">
+                <!--[if mso]><table role="presentation" width="600" align="center" border="0" cellpadding="0" cellspacing="0"><tr><td><![endif]-->
+                <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="width: 100%; max-width: 600px; margin: 0 auto; font-family: Poppins, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;">
+                    <tr>
+                        <td align="center" bgcolor="#0080C2" style="background-color: #0080C2; padding: 20px 25px;">
+                            {{-- Embedded images only render when the mail is actually sent (e.g. via the mail sandbox), not in browser previews of the Mailable. --}}
+                            {{-- Nested centred table: the only centring that holds in Outlook (Word engine) and in clients that strip inline-block / auto margins.
+                                 The right padding optically centres the logo: the sun sits left of the wordmark, so a true-centred logo looks shifted right.
+                                 The table stays centred, so the logo moves left by half the padding (24px -> 12px). --}}
+                            <table role="presentation" align="center" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+                                <tr>
+                                    <td align="center" style="padding: 0 24px 0 0; line-height: 0; font-size: 0;">
+                                        <a href="{{ url('/') }}" target="_blank" style="display: block;">
+                                            {{-- High-res source (1742x393) scaled down so it stays sharp on retina screens. --}}
+                                            <img src="{{ $message->embed(public_path('images/zjx_wide_large.png')) }}" width="220" height="50" align="middle" alt="Virtual Jacksonville ARTCC" style="display: block; width: 220px; max-width: 100%; height: auto; margin: 0 auto;">
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                            @hasSection('heading')
+                                <div style="padding-top: 12px; color: #EDEDF5; font-size: 16px; font-weight: bold; line-height: 1.4; text-align: center;">@yield('heading')</div>
+                            @endif
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="bg-body text-body content" bgcolor="#FFFFFF" style="background-color: #FFFFFF; padding: 25px; color: #000000; font-size: 16px; line-height: 1.5; text-align: left;">
+                            @yield('content')
 
-    <div class="wrapper">
-        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
-            <tr>
-                <td align="center">
-                    <div style="margin-bottom: 24px; text-align: center; width: 100%; display: flex; justify-content: center; background-color: #0080C2; padding: 16px;">
-                        <!-- THIS WILL NOT SHOW UP IN LARAVEL PREVIEWS. IF YOU ARE UNSURE IF ITS WORKING CHECK THE MAIL SANDBOX! -->
-                        <img src='{{ $message->embed(public_path('images/zjx_wide.png')) }}'/>
-                    </div>
-
-                    <table class="content-box" border="0" cellpadding="0" cellspacing="0">
-                        <tr>
-                            <td style="padding: 32px;">
-                                @yield('content')
-                            </td>
-                        </tr>
-                    </table>
-
-                    <div style="margin-top: 32px; text-align: center; color: #6B7280; font-size: 12px;">
-                        <p>&copy; {{ date('Y') }} {{ config('app.name') }}. All rights reserved. vZJX has no affiliation to the real Jacksonville ARTCC, the Federal Aviation Administration, or any governing aviation authority, nor does vZJX intend to impersonate them in any way, shape or form. vZJX is a subdivision of VATUSA and VATNA on the VATSIM network.</p>
-                        <p>
-                            <a href="#" style="color: #6B7280; text-decoration: underline;">Unsubscribe</a>
-                        </p>
-                    </div>
-
-                </td>
-            </tr>
-        </table>
-    </div>
-
+                            <p style="margin: 24px 0 0;">
+                                Regards,<br>
+                                The vZJX Staff<br>
+                                <a href="mailto:zjx-staff@vatusa.net" class="link" style="color: #0080C2;">zjx-staff@vatusa.net</a>
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="center" bgcolor="#0080C2" style="background-color: #0080C2; padding: 20px 25px; color: #FFFFFF; font-size: 12px; line-height: 1.5; text-align: center;">
+                            <p style="margin: 0 0 12px; font-size: 14px;">&copy; {{ date('Y') }} Virtual Jacksonville ARTCC. All rights reserved.</p>
+                            <p style="margin: 0 0 12px;">Do not reply to this email unless it asks you to do so; this inbox might be unmonitored.</p>
+                            <p style="margin: 0;">vZJX has no affiliation with the real Jacksonville ARTCC, the Federal Aviation Administration, or any governing aviation authority. vZJX is a subdivision of VATUSA and VATNA on the VATSIM network.</p>
+                        </td>
+                    </tr>
+                </table>
+                <!--[if mso]></td></tr></table><![endif]-->
+            </td>
+        </tr>
+    </table>
 </body>
 </html>

@@ -1,16 +1,15 @@
 @extends('mail.layout')
 
+@section('heading', 'L.O.A. Request Approved')
+
 @section('content')
-    <p>Hello {{ $loa->user->first_name }},</p>
+    <p>Dear {{ $loa->user->name }},</p>
 
-    <p>Your Leave of Absence request has been <strong>approved</strong>.</p>
-
-    <p><strong>Start Date:</strong> {{ $loa->start_date->format('Y-m-d') }}<br>
-    <strong>End Date:</strong> {{ $loa->end_date->format('Y-m-d') }}</p>
+    <p>Congratulations! Your L.O.A. request has been approved by staff from <strong>{{ $loa->start_date->format('Y-m-d') }}</strong> until <strong>{{ $loa->end_date->format('Y-m-d') }}</strong>.</p>
 
     @if ($loa->response)
         <p><strong>Response from staff:</strong> {{ $loa->response }}</p>
     @endif
 
-    <p>You can view or modify your request on your <a style='color: blue; text-decoration: underline;' href="{{ route('users.show', $loa->user) }}">profile page.</a></p>
+    <p>You can view or modify your L.O.A. on your <a href="{{ route('users.show', $loa->user) }}" class="link" style="color: #0080C2;">profile page</a> at any time.</p>
 @endsection

@@ -1,12 +1,11 @@
 @extends('mail.layout')
 
+@section('heading', 'L.O.A. Request Submitted')
+
 @section('content')
-    <p>Hello {{ $loa->user->first_name }},</p>
+    <p>Dear {{ $loa->user->name }},</p>
 
-    <p>Your Leave of Absence request has been submitted for review. You can monitor the status of your request on your <a class="text-primary underline" href="{{ route('users.show', $loa->user) }}">profile page.</a></p>
+    <p>Your L.O.A. request from <strong>{{ $loa->start_date->format('Y-m-d') }}</strong> to <strong>{{ $loa->end_date->format('Y-m-d') }}</strong> has been submitted for review. Please allow up to 7 business days for review.</p>
 
-    <p><strong>Start Date:</strong> {{ $loa->start_date->format('Y-m-d') }}<br>
-    <strong>End Date:</strong> {{ $loa->end_date->format('Y-m-d') }}</p>
-
-    <p>Please allow up to 7 business days for review.</p>
+    <p>You can monitor the status of your request on your <a href="{{ route('users.show', $loa->user) }}" class="link" style="color: #0080C2;">profile page</a>.</p>
 @endsection
