@@ -3,21 +3,25 @@
 @section('title', 'Training Assignments')
 
 @section('body')
-    <div>
-        <form class="flex flex-col">
-            <div class="flex flex-row gap-x-2 items-center mb-2">
-                <label class="label" for="showInactive">Show Inactive Requests</label>
-                <input
-                    name="showInactive"
-                    @if(request()->input('showInactive') == 'on')
-                        checked
-                    @endif
-                    type="checkbox"
-                />
-            </div>
+    {{-- One listener for the page, not one per row: `training-assignment-moved`
+         is a window event, so twenty rows meant twenty handlers each calling
+         reload() on the same signal. See TrainingAssignmentStatus::setStatus()
+         for when it fires. --}}
+    <div x-data @training-assignment-moved.window="window.location.reload()">
+        {{-- Counted in the controller, not off the paginator: these describe the
+             whole queue and stay put while you search or filter. --}}
+        <div class="flex flex-row flex-wrap gap-x-6 gap-y-1 text-sm text-base-content/70 mb-3">
+            <p>
+                Total Requests:
+                <span class="font-semibold text-base-content">{{ $pendingCount }}</span>
+            </p>
+            <p>
+                Students In Training:
+                <span class="font-semibold text-base-content">{{ $inTrainingCount }}</span>
+            </p>
+        </div>
 
-            <x-search-training-assignments/>
-        </form>
+        <x-search-training-assignments/>
 
         <x-training-assignment-table :training-assignments="$trainingAssignments"/>
 

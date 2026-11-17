@@ -47,18 +47,6 @@
                 </select>
             </div>
 
-            <div class="flex flex-col mb-5">
-                <label for="active" class="label">Active</label>
-                <input
-                    name="active"
-                    type="checkbox"
-                    class="checkbox checkbox-primary"
-                    @if($assignment->active)
-                        checked
-                    @endif
-                    value="1"/>
-            </div>
-
             <div class="flex flex-col mb-6">
                 <label for="status" class="label">Status</label>
                 <select name="status" id="" class="select">

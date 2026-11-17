@@ -24,5 +24,19 @@
         </select>
     </div>
 
+    <div class='flex flex-row items-center gap-x-2 mt-2'>
+        {{-- Submits on change so it applies immediately, and sits inside this
+             form so pressing Search carries it too. --}}
+        <input
+            id="showClosed"
+            name="showClosed"
+            type="checkbox"
+            class="checkbox checkbox-sm"
+            onchange="this.form.submit()"
+            @checked(request()->boolean('showClosed'))
+        />
+        <label for="showClosed" class="label cursor-pointer">Show completed / forfeited</label>
+    </div>
+
     <button type="submit" class="btn btn-primary btn-sm mt-2 w-max">Search</button>
 </form>

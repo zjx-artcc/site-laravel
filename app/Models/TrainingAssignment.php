@@ -49,7 +49,7 @@ class TrainingAssignment extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['user_id', 'instructor_id', 'status']);
+            ->logOnly(['user_id', 'instructor_id', 'status', 'active']);
     }
 
     public function toSearchableArray(): array
