@@ -284,3 +284,33 @@ test('the mailable renders without a real assigned time', function () {
         ->toContain('JAX_CTR')
         ->toContain('TBD');
 });
+
+test('the mailable shows event and assigned times in zulu and eastern', function () {
+    $event = notificationEvent([
+        'published' => true,
+        'start' => Carbon\Carbon::parse('2026-12-12 23:00', 'UTC'),
+        'end' => Carbon\Carbon::parse('2026-12-13 03:00', 'UTC'),
+    ]);
+
+    $registrant = EventPosition::create([
+        'event_id' => $event->id,
+        'user_id' => User::factory()->create()->id,
+        'requested_position' => 'JAX_CTR',
+        'assigned_position' => 'JAX_CTR',
+        'start' => $event->start,
+        'end' => $event->end,
+        'assigned_start' => Carbon\Carbon::parse('2026-12-12 23:00', 'UTC'),
+        'assigned_end' => Carbon\Carbon::parse('2026-12-13 01:00', 'UTC'),
+    ]);
+
+    $html = (new EventPositionAssigned($registrant))->render();
+
+    expect($html)
+        // Crosses midnight in Zulu, so the end date is repeated; seconds are dropped.
+        ->toContain('12/12/2026 23:00z - 12/13/2026 03:00z')
+        ->toContain('12/12/2026 23:00z - 12/13/2026 01:00z')
+        // Same evening in Eastern, so only the end time is shown.
+        ->toContain('12/12/2026 6:00 PM - 10:00 PM EST')
+        ->toContain('12/12/2026 6:00 PM - 8:00 PM EST')
+        ->not->toContain('23:00:00z');
+});

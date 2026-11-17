@@ -111,7 +111,7 @@ If the user already has any `VisitorRequest`, `create()` redirects back to
 3. Creates a `VisitorRequest` with `user_id`, `user_note` = the personal note, and
    `status = PENDING`.
 4. Queues a `VisitorRequestReceived` mail to the applicant, BCC'd to
-   `atm@zjxartcc.org` and `datm@zjxartcc.org`.
+   `{vatusa_facility}-atm@vatusa.net` and `{vatusa_facility}-datm@vatusa.net`.
 5. Logs the submission and redirects to `visit.index` with a success message.
 
 ```mermaid
@@ -274,9 +274,9 @@ The admin routes live inside the `admin` prefix group gated by
 | Class                                   | Type       | When it fires                                    | Recipients                                    |
 |-----------------------------------------|------------|--------------------------------------------------|-----------------------------------------------|
 | `App\Jobs\AddUserToVisitingRoster`      | Queued job | On approval, after local records are updated     | VATUSA `manageVisitor` API                     |
-| `App\Mail\VisitorRequestReceived`       | Queued mail| On submit (`store()`)                            | Applicant, BCC `atm@` / `datm@zjxartcc.org`   |
-| `App\Mail\VisitorRequestAccepted`       | Queued mail| On approval (`approve()`)                        | Applicant, BCC `atm@` / `datm@zjxartcc.org`   |
-| `App\Mail\VisitorRequestRejected`       | Queued mail| On denial (`deny()`)                             | Applicant, BCC `atm@` / `datm@zjxartcc.org`   |
+| `App\Mail\VisitorRequestReceived`       | Queued mail| On submit (`store()`)                            | Applicant, BCC `{facility}-atm@` / `-datm@vatusa.net` |
+| `App\Mail\VisitorRequestAccepted`       | Queued mail| On approval (`approve()`)                        | Applicant, BCC `{facility}-atm@` / `-datm@vatusa.net` |
+| `App\Mail\VisitorRequestRejected`       | Queued mail| On denial (`deny()`)                             | Applicant, BCC `{facility}-atm@` / `-datm@vatusa.net` |
 
 All three mailables carry the `VisitorRequest` and render Blade views under
 `resources/views/mail/` (`visitor-request-received`, `visitor-request-accepted`,

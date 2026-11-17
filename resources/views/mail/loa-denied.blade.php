@@ -1,13 +1,15 @@
 @extends('mail.layout')
 
-@section('content')
-    <p>Hello {{ $loa->user->first_name }},</p>
+@section('heading', 'L.O.A. Request Denied')
 
-    <p>Your Leave of Absence request has been <strong>denied</strong>.</p>
+@section('content')
+    <p>Dear {{ $loa->user->name }},</p>
+
+    <p>Unfortunately, your L.O.A. request has been <strong>denied</strong> by staff.</p>
 
     @if ($loa->response)
         <p><strong>Response from staff:</strong> {{ $loa->response }}</p>
     @endif
 
-    <p>You can submit a new request on your <a style='color: blue; text-decoration: underline;' href="{{ route('users.show', $loa->user) }}">profile page.</a></p>
+    <p>You can submit a new request on your <a href="{{ route('users.show', $loa->user) }}" class="link" style="color: #0080C2;">profile page</a>.</p>
 @endsection
