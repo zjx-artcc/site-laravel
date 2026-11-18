@@ -8,7 +8,8 @@ glance, assigning/unassigning them, and reserving OIs so they can never be hande
 
 - Route: `GET /admin/oi-matrix` (`admin.oi-matrix`), gated by the `manage users` permission (the
   `admin` role) on top of the admin group's `view dashboard` permission.
-- Linked from **Facility Admin → OI Matrix** in the admin navbar (desktop and mobile).
+- Linked as **Operating Initials** from **Administration** in the admin sidebar and **Facility
+  Admin** in the admin navbar (desktop and mobile).
 - Livewire component `App\Livewire\OiMatrix` (`resources/views/livewire/oi-matrix.blade.php`).
 
 Each cell is one OI, coloured by state:

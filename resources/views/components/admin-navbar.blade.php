@@ -82,7 +82,7 @@
                     <li><a href={{ route('admin.index') }}>Dashboard</a></li>
                     <li><a href={{ route('manage-users.index') }}>User Management</a></li>
                     @if(auth()->user()?->can('manage users'))
-                        <li><a href="{{ route('admin.oi-matrix') }}">OI Matrix</a></li>
+                        <li><a href="{{ route('admin.oi-matrix') }}">Operating Initials</a></li>
                     @endif
                     <li>
                         <a href={{ route('visit.manage') }}>Visitor Requests
@@ -272,7 +272,7 @@
                             <li><a href={{ route('admin.index') }} class="rounded-none px-3 py-3.5 text-lg">Dashboard</a></li>
                             <li><a href={{ route('manage-users.index') }} class="rounded-none px-3 py-3.5 text-lg">User Management</a></li>
                             @if(auth()->user()?->can('manage users'))
-                                <li><a href="{{ route('admin.oi-matrix') }}" class="rounded-none px-3 py-3.5 text-lg">OI Matrix</a></li>
+                                <li><a href="{{ route('admin.oi-matrix') }}" class="rounded-none px-3 py-3.5 text-lg">Operating Initials</a></li>
                             @endif
                             <li>
                                 <a href={{ route('visit.manage') }} class="rounded-none px-3 py-3.5 text-lg">Visitor Requests
