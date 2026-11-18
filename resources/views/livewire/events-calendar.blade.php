@@ -42,17 +42,25 @@
 
                     <div class="border border-base-200 min-h-[5.5rem] lg:min-h-[6.5rem] p-1.5
                                 {{ $inMonth ? 'bg-base-100' : 'bg-base-200/40' }}
-                                {{ $isToday ? 'ring-2 ring-primary/40 ring-inset' : '' }}">
-                        {{-- Day number --}}
-                        <div class="text-xs font-medium {{ $inMonth ? 'text-base-content' : 'text-base-content/30' }} {{ $isToday ? 'text-base-content font-bold' : '' }}">
-                            {{ $day->format('j') }}
-                        </div>
+                                {{ $isToday ? 'ring-2 ring-amber-600 dark:ring-warning ring-inset' : '' }}">
+                        {{-- Day number. Today gets a filled yellow circle (the warning colour the admin
+                             calendar also uses for today) so it reads in both themes and can't be
+                             mistaken for a blue event chip. --}}
+                        @if ($isToday)
+                            <div class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-warning text-warning-content text-xs font-bold">
+                                {{ $day->format('j') }}
+                            </div>
+                        @else
+                            <div class="text-xs font-medium {{ $inMonth ? 'text-base-content' : 'text-base-content/30' }}">
+                                {{ $day->format('j') }}
+                            </div>
+                        @endif
 
                         {{-- Events for this day --}}
                         <div class="mt-0.5 space-y-0.5 overflow-y-auto max-h-[4rem] lg:max-h-[5rem]">
                             @foreach($dayEvents as $event)
                                 <a href="{{ route('events.show', $event->id) }}"
-                                   class="block text-xs leading-tight px-1.5 py-0.5 rounded bg-primary/10 text-base-content hover:bg-primary/20 transition truncate">
+                                   class="block text-xs font-medium leading-tight px-1.5 py-1 rounded bg-primary text-primary-content hover:bg-primary/85 transition truncate">
                                     {{ $event->title }}
                                 </a>
                             @endforeach
