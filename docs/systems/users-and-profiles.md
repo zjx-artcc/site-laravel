@@ -21,7 +21,8 @@ records are pulled from and reconciled with VATUSA, see
   enum (values run from `INA = -1` through `ADM = 12`). Use
   `$user->rating->mapToString()` to render it.
 - **Operating initials** (`operating_initials`) are a unique, optional two-character
-  code. The model normalizes them to uppercase on both read and write.
+  code. The model normalizes them to uppercase on both read and write (clearing stores `null`).
+  Managed from the [OI Matrix](operating-initials.md), which can also reserve OIs.
 - **Default role.** Newly created users are automatically assigned the `core`
   Spatie role in the model's `booted()` hook.
 - **Rostered flag.** `rostered` (boolean) marks members who are on the ZJX roster.
@@ -43,7 +44,7 @@ Casts: `email_verified_at` → datetime, `password` → hashed, `rating` →
 
 Accessors / mutators (all via `Attribute`):
 
-- `operatingInitials` — upper-cases on get and set.
+- `operatingInitials` — upper-cases on get and set; `null`/empty is stored as `null`.
 - `firstName` / `lastName` — `ucfirst` on get and set.
 - `name` — read-only, returns `"First Last"`.
 - `nameReversed` — read-only, returns `"Last, First"`.
@@ -124,22 +125,28 @@ these files are served publicly). Operating initials can only be changed by
 a user with `manage users`, and the controller rejects the change (redirect back
 with an `error`) if the initials are already assigned to another user.
 
-### Searching the roster
+### Searching and filtering the roster
 
-The roster page renders the `UserTable` Livewire component
+The roster page (`GET admin/users`) renders the `UserTable` Livewire component
 (`@livewire('user-table')` in `resources/views/user-management/index.blade.php`).
-`UserTable` (`app/Livewire/UserTable.php`) extends `SortableTable`
-(`app/Livewire/SortableTable.php`) and, on each render, runs
-`User::search($this->search)->orderBy($sortField, $sortDirection)->paginate(25)`.
-Because Scout uses the `collection` driver, this search executes against the
-database. The default sort is `last_name asc`.
+`UserTable` (`app/Livewire/UserTable.php`) extends `SortableTable` and builds a plain
+Eloquent query on each render (it no longer goes through Scout):
 
-`User::toSearchableArray()` exposes `name`, `email`, `id`,
-`rating` (via `mapToString()`), and `facility` to the search index.
+- **Search** (live, debounced): name (either order), CID, operating initials, and — for
+  `manage users` holders only — email.
+- **Filters**: roster status (rostered by default / not rostered / everyone), home vs
+  visitor (`facility` vs `config('app.vatusa_facility')`), OI assigned/unassigned, and
+  rating. All filters, the search and the sort are kept in the URL (`#[Url]`) so a view
+  can be bookmarked or shared.
+- **Sorting**: click the Name, CID, OI, Rating or Joined header (whitelisted fields only).
+- **Summary badges**: rostered / home / visiting counts and "N without OI", which
+  applies the unassigned-OI filter when clicked.
+- **Assign OI**: for `manage users` holders, rostered controllers without an OI get an
+  "Assign OI" button linking to `admin/oi-matrix?controller=<cid>`, which opens the
+  [OI Matrix](operating-initials.md) already in assign mode for that controller.
 
-`SortableTable` is a small base component declaring the shared `search`,
-`sortField`, and `sortDirection` public properties; `UserTable` supplies the
-concrete defaults and the `render()` method.
+The old "Last Activity" column (it showed `updated_at`, which isn't activity) was removed.
+Results are paginated 25 per page; the default sort is `last_name asc`.
 
 ## Permissions / middleware
 
@@ -153,7 +160,7 @@ concrete defaults and the `render()` method.
 - **Admin roster management** (`GET admin/users`, route name
   `manage-users.index`, `UserManagementController@index`) lives inside the
   `admin` route group, which is guarded by `permission:view dashboard`. The
-  roster table itself reveals email / joined / last-activity columns and the
+  roster table itself reveals email / joined columns and the
   Edit action only to viewers with `manage users` (via `@haspermission` in the
   Blade).
 
@@ -165,7 +172,7 @@ concrete defaults and the `render()` method.
 | `app/Enums/ControllerRating.php` | Rating enum + `mapToString()` |
 | `app/Http/Controllers/UserController.php` | Public profile show/edit/update + training sub-tabs |
 | `app/Http/Controllers/UserManagementController.php` | Admin roster listing |
-| `app/Livewire/UserTable.php` | Livewire roster table (search + sort + paginate) |
+| `app/Livewire/UserTable.php` | Livewire roster table (search + filters + sort + paginate) |
 | `app/Livewire/SortableTable.php` | Base Livewire component for sortable tables |
 | `routes/web.php` | `users` resource + `users/{user}/*` sub-tab routes, `admin/users` |
 | `resources/views/users/` | `show`, `edit`, and training sub-tab views |

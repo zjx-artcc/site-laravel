@@ -8,6 +8,7 @@ use App\Models\ControllerMonthlyStat;
 use App\Models\ControllerSession;
 use App\Models\Feedback;
 use App\Models\User;
+use App\Rules\NotReservedOperatingInitials;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -61,7 +62,7 @@ class UserController extends Controller
     public function update(Request $request, int $id)
     {
         $validated = $request->validate([
-            'operatingInitials' => 'string|nullable|size:2', // can only be edited if admin
+            'operatingInitials' => ['string', 'nullable', 'size:2', 'alpha', new NotReservedOperatingInitials], // can only be edited if admin
             'image' => 'file|image|mimes:jpeg,png,jpg,gif|max:2048|nullable',
             'biography' => 'string|nullable|max:1000',
         ], [

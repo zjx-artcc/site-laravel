@@ -208,6 +208,9 @@
 
                                 <ul x-show="open" x-cloak class="bg-base-300/50 py-1 text-sm">
                                     <li><a class="block py-2 pl-8 pr-4 hover:bg-base-300" href="{{ route('manage-users.index') }}">User Management</a></li>
+                                    @if(auth()->user()?->can('manage users'))
+                                        <li><a class="block py-2 pl-8 pr-4 hover:bg-base-300" href="{{ route('admin.oi-matrix') }}">Operating Initials</a></li>
+                                    @endif
                                     <li><a class="block py-2 pl-8 pr-4 hover:bg-base-300" href="{{ route('admin.news.index') }}">News Management</a></li>
                                     <li><a class="block py-2 pl-8 pr-4 hover:bg-base-300" href="{{ route('visit.manage') }}">Visitor Requests</a></li>
                                     <li><a class="block py-2 pl-8 pr-4 hover:bg-base-300" href="{{ route('loa.manage') }}">LOA Requests</a></li>

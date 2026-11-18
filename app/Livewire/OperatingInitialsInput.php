@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\VisitorRequest;
+use App\Rules\NotReservedOperatingInitials;
 use Livewire\Component;
 
 class OperatingInitialsInput extends Component
@@ -24,6 +25,8 @@ class OperatingInitialsInput extends Component
                 'nullable',
                 'string',
                 'size:2',
+                'alpha',
+                new NotReservedOperatingInitials,
                 'unique:users,operating_initials,'.$this->visitRequest->user_id,
             ],
         ];

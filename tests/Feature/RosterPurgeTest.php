@@ -267,7 +267,7 @@ test('the removal job de-rosters the user locally and emails them on a successfu
     $user->refresh();
 
     expect($user->rostered)->toBeFalse()
-        ->and($user->operating_initials)->toBe(''); // cleared (accessor upper-cases null to '')
+        ->and($user->operating_initials)->toBeNull(); // cleared
 
     Mail::assertQueued(ControllerRemovedFromRoster::class, fn ($mail) => $mail->hasTo($user->email)
         && $mail->user->id === $user->id
