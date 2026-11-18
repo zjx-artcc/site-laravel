@@ -177,6 +177,34 @@
     background-color: var(--color-base-100);
 }
 
+/* Dark mode: the primary blue is a deep navy that works as a fill behind white text but is
+   unreadable as text on the dark background (~2:1 contrast). So in dark mode, anything that
+   uses primary as a foreground colour (text, links, outlines) turns white instead; filled
+   primary surfaces (buttons, badges, navbar, footer) are untouched.
+   Kept inside the utilities layer so state variants such as group-hover:text-primary-content
+   (higher specificity) still win, e.g. the filled hover state of the publications View button. */
+@layer utilities {
+    [data-theme="dark"] .text-primary,
+    [data-theme="dark"] .link-primary,
+    [data-theme="dark"] .link-primary:hover {
+        color: var(--color-base-content);
+    }
+    [data-theme="dark"] .border-primary {
+        border-color: var(--color-base-content);
+    }
+
+    @media (prefers-color-scheme: dark) {
+        html:not([data-theme="light"]) .text-primary,
+        html:not([data-theme="light"]) .link-primary,
+        html:not([data-theme="light"]) .link-primary:hover {
+            color: var(--color-base-content);
+        }
+        html:not([data-theme="light"]) .border-primary {
+            border-color: var(--color-base-content);
+        }
+    }
+}
+
 /* Quill's snow theme hardcodes dark ink for its toolbar icons (#444), borders, and
    placeholder text, so the B/I/U/strike controls vanish against the dark theme's
    surfaces. Recolor them to follow base-content. Hover/active keep Quill's own blue
