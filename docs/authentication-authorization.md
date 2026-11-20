@@ -140,18 +140,23 @@ Seeded by `database/seeders/PermissionSeeder.php`. These are the canonical role 
 | Role | Permissions |
 | --- | --- |
 | `core` | `edit own profile` |
-| `staff` | `view dashboard` |
-| `admin` | `manage users`, `assign roles`, `manage roles`, `view audit logs`, `manage visiting controllers` |
-| `events` | `manage events`, `assign event positions`, `publish events` |
-| `facilities` | `manage statistics prefixes`, `manage certification facilities` |
-| `training` | `create training tickets`, `edit training tickets`, `claim students`, `issue solo certs` |
-| `instructor` | `revoke solo certs`, `manage training tickets`, `manage students` |
+| `rostered` | `create atc booking` |
+| `staff` | `view dashboard`, `manage faqs`, `feedback:read`, `feedback:write` |
+| `admin` | `manage users`, `assign roles`, `manage roles`, `view audit logs`, `manage visiting controllers`, `remove inactive controllers`, `manage loas`, `certifications:write`, `documents:write`, `feedback:read`, `feedback:write`, `manage contributors`, `staffing-requests:read`, `staffing-requests:write` |
+| `events` | `manage events`, `assign event positions`, `publish events`, `feedback:read`, `staffing-requests:read`, `staffing-requests:write` |
+| `facilities` | `manage statistics prefixes`, `certification-facilities:write`, `documents:write`, `statistics:write` |
+| `training` | `create training tickets`, `edit training tickets`, `claim students`, `issue solo certs`, `training-tickets:read`, `training-tickets:write`, `training-assignments:read`, `solo-certs:read` |
+| `instructor` | `revoke solo certs`, `manage training tickets`, `manage students`, `certifications:write` |
+
+A permission can belong to more than one role (for example `feedback:read`). Newer
+permissions use a `resource:read` / `resource:write` naming style. Older ones use plain
+phrases (`manage events`).
 
 The seeder creates each role, creates each permission, and grants the permission to its role via `firstOrCreate` + `givePermissionTo`, so it is idempotent.
 
 ### How roles get assigned
 
-There are two assignment paths.
+There are three assignment paths.
 
 **1. Default `core` role on user creation.** `app/Models/User.php` `booted()` hook:
 
@@ -182,6 +187,8 @@ Every newly created user — including one created during OAuth callback — get
 
 (ATM = Air Traffic Manager, DATM = Deputy ATM, TA = Training Administrator, ATA = Assistant TA, WM = Webmaster, EC = Events Coordinator, FE = Facilities Engineer, INS = Instructor, MTR = Mentor.)
 
+**3. `rostered` role from roster membership.** `SyncRoster::syncRosteredRole()` gives the `rostered` role to every user with `rostered = true` and removes it from everyone else, on every sync. It isn't touched by `clearUserRoles()`.
+
 Additionally, when running in the `development` environment, `SyncRoster::handle()` grants any user whose first name is "Web" the full set `admin`, `staff`, `training`, `events`, `facilities`, `instructor` and marks them rostered — this is a local test-account convenience, not production behavior.
 
 ### Route middleware map
@@ -202,12 +209,25 @@ Roles and permissions are enforced on routes via middleware aliases registered i
 | `admin/users` | (inherits group only) | Only needs `view dashboard`. |
 | `admin/visit-requests*` | `permission:manage visiting controllers` | Visiting-controller request management (owned by `admin`). |
 | `admin/data/statistics-prefixes` | `permission:manage statistics prefixes` | Statistics prefix CRUD (owned by `facilities`). |
-| `admin/data/certification-facilities*` | `permission:manage certification facilities` | Certification facility/level management (owned by `facilities`). |
+| `admin/data/certification-facilities*` | `permission:certification-facilities:write` | Certification facility/level management (owned by `facilities`). |
 | `admin/logs*` | `permission:view audit logs` | Audit log view/export (owned by `admin`). |
 | `admin/training/*` | `role:training` | Training tickets, assignments, solo certs. Note this checks the **`training` role**, not a permission. |
 | `admin/events/*` | `permission:manage events` | Event management, event fields, position presets (owned by `events`). |
+| `admin/news*` | `role:admin` | News management. A **role** check. |
+| `admin/faqs` | `permission:manage faqs` | FAQ management. |
+| `admin/feedback*` | `permission:feedback:read` (view) / `permission:feedback:write` (act) | Feedback review. |
+| `admin/staffing-requests*` | `permission:staffing-requests:read` / `permission:staffing-requests:write` | Staffing request review. |
+| `admin/loas*` | `permission:manage loas` | LOA review. |
+| `admin/contributors*` | `permission:manage contributors` | Manual contributor entries. |
+| `admin/publications*` | `permission:documents:write` | Publications and categories. |
+| `admin/roster-purge*` | `permission:manage visiting controllers` (view/export) / `permission:remove inactive controllers` (remove) | Roster purge assistant. |
+| `admin/statistics/sync` | `permission:statistics:write` | Queue a statistics import. |
+| `admin/certifications` | `permission:certifications:write` **only** | Certification grant/revoke grid. Registered in its own `admin`-prefixed group, so it does **not** require `view dashboard`. |
+| `bookings.store` | `permission:create atc booking` | Create an ATC booking (outside the admin group). |
 
-Routes outside the admin group that require only a logged-in user use plain `auth`: `visit.create`, `visit.store`, `training-assignment.create`, and `events.request-position.store`.
+Routes outside the admin group that require only a logged-in user use plain `auth`, including `visit.create`, `visit.store`, `training-assignment.create`, `events.request-position.store`, the feedback form, the staffing-request form, LOA routes, the statistics page, and the contributors page. See each [system doc](../README.md) for its full route list.
+
+Livewire's update requests don't re-run the page's route middleware, so any Livewire action that changes data must check the relevant permission itself (`abort_unless(auth()->user()?->hasPermissionTo(...), 403)`).
 
 The `/sync`, `/sync-training`, and `/test-email` helper routes are only registered in `development` / `local` environments and have no auth middleware.
 

@@ -35,7 +35,8 @@ in their sections below.
 
 ## Scheduled work
 
-`routes/console.php` registers the recurring jobs:
+`routes/console.php` registers these VATSIM/VATUSA-related recurring jobs (for the full
+schedule, see [architecture](architecture.md#scheduled-work)):
 
 - `SyncRoster` — every two hours.
 - `UpdateOnlineControllers` — every minute.
@@ -217,7 +218,7 @@ PHP properties. They perform no I/O themselves.
 
 ## Discord
 
-There are two independent Discord mechanisms.
+There are three independent Discord mechanisms.
 
 ### 1. Discord log channel — `config/logging.php`
 
@@ -239,6 +240,17 @@ A direct webhook post, separate from logging. Constructed with a
 (`TRAINING_REQUEST_WEBHOOK_URL`) titled "New Training Assignment Created", with
 the student's name and CID, the assignment id, the training type, and the
 created-at timestamp.
+
+### 3. Feedback webhook — `app/Jobs/SendFeedbackToWebhook.php`
+
+Dispatched from `FeedbackController::release()` when staff release a piece of
+controller feedback. It `POST`s a Discord embed to `feedback_webhook_url`
+(`FEEDBACK_WEBHOOK`) with the controller's name and CID, the position, the
+experience rating, and the comments. The submitter is not included. See
+[feedback](systems/feedback.md).
+
+All three webhook URLs are secrets: anyone holding one can post to that channel.
+Keep them in the deployment environment only.
 
 ## Mail
 

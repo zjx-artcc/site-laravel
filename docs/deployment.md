@@ -199,9 +199,13 @@ the web container never migrates).
 
 ### Scheduler
 
-- `routes/console.php` registers two scheduled jobs:
+- `routes/console.php` registers five scheduled jobs:
   - `SyncRoster` — every two hours (`everyTwoHours()`).
   - `UpdateOnlineControllers` — every minute (`everyMinute()`).
+  - `ExpireLoas` — daily (`daily()`).
+  - `ArchiveEvents` — every five minutes (`everyFiveMinutes()`).
+  - `SyncVatsimSessions` — every six hours (`everySixHours()`), dispatched from a
+    `Schedule::call` closure.
 - These only fire if Laravel's scheduler runs. `entrypoint.sh` does not start it, so a
   cron entry or a dedicated container must invoke `php artisan schedule:run` every
   minute (or run `php artisan schedule:work` as a long-lived process).
@@ -303,6 +307,9 @@ files (`config/app.php`, `config/logging.php`, `config/mail.php`) but are not pr
 
 - `TRAINING_REQUEST_WEBHOOK_URL` — webhook the app posts training requests to (read by
   `config/app.php`).
+- `FEEDBACK_WEBHOOK` — (read by `config/app.php` as `app.feedback_webhook_url`, not in
+  `.env.example`) webhook the app posts released controller feedback to. See
+  [feedback](systems/feedback.md).
 - `LOG_DISCORD_WEBHOOK_URL` and `LOG_DISCORD_IGNORE_EXCEPTIONS` — (read by
   `config/logging.php` for the Discord log channel, not in `.env.example`) webhook and
   exception-ignore toggle for the Discord logging channel.

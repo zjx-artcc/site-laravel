@@ -253,7 +253,19 @@ requirement — they are intended to be public.
 | `UpdateOnlineControllers` | `everyMinute()` | Truncates and rebuilds `online_controllers` from the VATSIM datafeed, filtered by statistics prefixes. |
 
 Both jobs can also be dispatched manually in `local`/`development` via the dev-only
-`GET /sync` route (`routes/web.php`). No mail is sent by this system.
+`GET /sync` route (`routes/web.php`). Neither sends mail.
+
+The roster purge assistant adds one more queued job and two mailables:
+
+| Class | Trigger | Recipient |
+| --- | --- | --- |
+| `RemoveUserFromRoster` (job) | Each user selected for removal in the purge tool | Calls VATUSA (home-roster or visitor endpoint, depending on the user's facility) and writes an audit-log entry with the outcome. |
+| `ControllerRemovedFromRoster` (mail) | Removal succeeded | The removed controller, BCC `zjx-atm@vatusa.net` / `zjx-datm@vatusa.net` |
+| `RosterRemovalFailed` (mail) | VATUSA rejected or failed the removal | The staff member who requested it |
+
+On success the job also clears `rostered` and `operating_initials` locally, so the change
+shows before the next `SyncRoster`. On failure it clears `roster_removal_queued_at`, which
+puts the user back on the flagged list to retry.
 
 ## Key files
 
@@ -277,7 +289,7 @@ Both jobs can also be dispatched manually in `local`/`development` via the dev-o
 | `app/Models/StatisticsPrefixes.php` | Prefix model (uppercasing accessor/mutator, activity log). |
 | `resources/views/statistics-prefixes/index.blade.php` | Prefix management UI. |
 | `database/seeders/StatisticsPrefixesSeeder.php` | Seeds the default ZJX prefixes. |
-| `routes/console.php` | Schedules both background jobs. |
+| `routes/console.php` | Schedules this system's two background jobs (among others). |
 
 ## Gotchas
 

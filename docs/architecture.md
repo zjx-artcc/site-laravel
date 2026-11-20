@@ -114,9 +114,11 @@ Routing structure at a glance:
 - **Admin area** (`/admin`, gated by `permission:view dashboard`): the dashboard plus
   nested groups each with their own permission or role gate — user management, visiting
   controllers (`permission:manage visiting controllers`), facilities data
-  (`permission:manage statistics prefixes`, `permission:manage certification facilities`),
-  audit logs (`permission:view audit logs`), training (`role:training`), and events
-  (`permission:manage events`).
+  (`permission:manage statistics prefixes`, `permission:certification-facilities:write`),
+  audit logs (`permission:view audit logs`), training (`role:training`), events
+  (`permission:manage events`), and the content and review areas (news, FAQs, feedback,
+  LOAs, staffing requests, publications, contributors, roster purge). The full map is in
+  [authentication & authorization](authentication-authorization.md#route-middleware-map).
 - **Dev-only routes**: `/sync`, `/sync-training`, and `/test-email` are registered only
   in the `local` and `development` environments for manually dispatching jobs and previewing
   mail.
@@ -130,12 +132,16 @@ The scheduler is defined in `routes/console.php` (the console entry registered b
 | --- | --- | --- |
 | `Schedule::job(new SyncRoster())` | `app/Jobs/SyncRoster.php` | Every two hours |
 | `Schedule::job(new UpdateOnlineControllers())` | `app/Jobs/UpdateOnlineControllers.php` | Every minute |
+| `Schedule::job(new ExpireLoas())` | `app/Jobs/ExpireLoas.php` | Daily |
+| `Schedule::job(new ArchiveEvents())` | `app/Jobs/ArchiveEvents.php` | Every five minutes |
 | `Schedule::call(...SyncVatsimSessions::dispatch(...))` | `app/Jobs/SyncVatsimSessions.php` | Every six hours |
 
 `SyncRoster` pulls the controller roster from VATUSA; `UpdateOnlineControllers` refreshes
 who is currently online; and `SyncVatsimSessions` imports historical controller activity.
-All are covered in [VATSIM integration](vatsim-integration.md) and [roster and
-membership](systems/roster-and-membership.md). In local/development you can trigger the
+These are covered in [VATSIM integration](vatsim-integration.md) and [roster and
+membership](systems/roster-and-membership.md). `ExpireLoas` marks approved LOAs past their
+end date as inactive and emails the controller (BCC the ATM/DATM); `ArchiveEvents` archives
+and hides events that ended more than 24 hours ago. In local/development you can trigger the
 roster sync manually via the dev-only `/sync` route.
 
 Because scheduled work is dispatched as queued jobs, a queue worker and the scheduler both

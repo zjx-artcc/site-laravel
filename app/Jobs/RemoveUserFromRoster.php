@@ -102,7 +102,9 @@ class RemoveUserFromRoster implements ShouldQueue
         $user->roster_removal_queued_at = null;
         $user->save();
 
-        Mail::to($user->email)->bcc(['atm@zjxartcc.org', 'datm@zjxartcc.org'])->queue(new ControllerRemovedFromRoster($user, $this->reason));
+        $facility = strtolower((string) config('app.vatusa_facility'));
+
+        Mail::to($user->email)->bcc([$facility.'-atm@vatusa.net', $facility.'-datm@vatusa.net'])->queue(new ControllerRemovedFromRoster($user, $this->reason));
 
         Log::info('Successfully removed user '.$this->userId.' from roster. Reason: '.$this->reason);
     }

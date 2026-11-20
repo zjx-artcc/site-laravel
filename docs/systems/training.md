@@ -173,13 +173,20 @@ erDiagram
 
 1. Validates `student`, `position` (regex above), `location` (0–2),
    `sessionStart`/`sessionEnd` (`sessionEnd` must be after `sessionStart`),
-   `movements`, `score` (1–5), `notes`, and optional `instructor_notes`
-   (staff-only). The note fields have no application-level maximum length.
+   `movements`, `score` (1–5), `notes` (rejected if the Quill editor is empty),
+   optional `instructor_notes` (staff-only, never shown to the student or sent to
+   VATUSA), and an optional `certification_level_id`. The note fields have no
+   application-level maximum length and are sanitized with Purify.
 2. Rejects the ticket if the instructor picks themselves as the student.
 3. Creates the `TrainingTicket` with `instructor_id = Auth::user()->id`.
-4. Emails the student (bcc the instructor) via `TrainingTicketCreated`.
-5. Dispatches `SyncTrainingTickets` to push to VATUSA.
-6. Redirects to `training-tickets.show`.
+4. If a certification level was chosen **and** the instructor has
+   `certifications:write`, grants that level to the student
+   (`UserCertification::firstOrCreate`) and records it in
+   `issued_certification_level_id`. Otherwise the level is ignored. See
+   [certifications](certifications.md).
+5. Emails the student (bcc the instructor) via `TrainingTicketCreated`.
+6. Dispatches `SyncTrainingTickets` to push to VATUSA.
+7. Redirects to `training-tickets.show`.
 
 > The controller's `edit()` / `update()` methods are marked **`!!!! NOT IN USE !!!!`**
 > and block edits once `vatusa_synced` is true; `destroy()` is empty.
@@ -228,7 +235,7 @@ Livewire component that lists assignments with a `includeInactive` toggle
 3. Creates the `SoloCert` with `issued_by_id = Auth::user()->id`.
 4. Flips every active `TrainingAssignment` for that user to `TrainingStatus::SOLO`.
 5. Dispatches `CreateVatusaSoloCert`.
-6. Emails the student, bcc the issuer and `{vatusa_facility}-ta@vatusa.net`
+6. Emails the student, bcc the issuer and `{vatusa_facility}-ta@vatusa.net` (`zjx-ta@vatusa.net`)
    (`SoloCertIssued`).
 
 ### Revoke a solo certification
@@ -241,7 +248,7 @@ Livewire component that lists assignments with a `includeInactive` toggle
 2. Dispatches `RevokeVatusaSoloCert`.
 3. Flips the user's active assignments back to `TrainingStatus::ACTIVE`.
 4. Sets `revoked = true`.
-5. Emails the student, bcc the issuer and `{vatusa_facility}-ta@vatusa.net`
+5. Emails the student, bcc the issuer and `{vatusa_facility}-ta@vatusa.net` (`zjx-ta@vatusa.net`)
    (`SoloCertRevoked`).
 
 ### VATUSA sync (tickets)
@@ -273,8 +280,12 @@ Individual actions layer on finer-grained permission checks
 
 | Role | Permissions (seeded) |
 |------|----------------------|
-| `training` | `create training tickets`, `edit training tickets`, `claim students`, `issue solo certs` |
-| `instructor` | `revoke solo certs`, `manage training tickets`, `manage students` |
+| `training` | `create training tickets`, `edit training tickets`, `claim students`, `issue solo certs`, `training-tickets:read`, `training-tickets:write`, `training-assignments:read`, `solo-certs:read` |
+| `instructor` | `revoke solo certs`, `manage training tickets`, `manage students`, `certifications:write` |
+
+The training department landing page, `GET /admin/training`
+(`TrainingDashController::index()`, view `admin.training-dashboard`), is a static page
+behind the same `role:training` guard.
 
 Per-action checks:
 
@@ -321,7 +332,8 @@ All four are queued (`ShouldQueue`). The VATUSA jobs read
 
 | File | Role |
 |------|------|
-| `app/Http/Controllers/Training/TrainingTicketController.php` | Ticket CRUD + sync dispatch |
+| `app/Http/Controllers/Training/TrainingDashController.php` | Training department landing page |
+| `app/Http/Controllers/Training/TrainingTicketController.php` | Ticket CRUD + sync dispatch + optional certification grant |
 | `app/Http/Controllers/Training/TrainingAssignmentController.php` | Assignment request / claim / drop / update / destroy |
 | `app/Http/Controllers/Training/SoloCertController.php` | Solo cert issue / revoke |
 | `app/Models/TrainingTicket.php` | Ticket model, `duration` attribute, sync flags |
