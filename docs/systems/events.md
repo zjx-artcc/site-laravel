@@ -1,29 +1,58 @@
 # Events System
 
-This document explains how events work on the ZJX ARTCC site: how staff create and manage events, how reusable position presets and featured-field metadata are attached to them, and how members register for a position on an event.
+This document explains how events work on the ZJX ARTCC site: how staff create and manage
+events, how members request a position, how staff assign and publish positions, and how
+events are archived once they're over.
 
 ## Purpose
 
-An **event** is a scheduled VATSIM activity (for example a Friday Night Operations session or a group flight) that members can staff. The events system covers three concerns:
+An **event** is a scheduled VATSIM activity (for example a Friday Night Operations session
+or a group flight) that members can staff. The events system covers:
 
-1. **Event management** — staff in the Events department create, edit, and delete events from the admin area.
-2. **Reusable metadata** — two catalogs, *position presets* (named lists of ATC positions) and *featured fields* (named airport/ICAO tags), that can be reused across events.
-3. **Registration** — authenticated members request a position on a published event, choosing a start/end window and leaving optional notes.
+1. **Event management:** staff in the Events department create, edit, hide, archive, and
+   delete events from the admin area.
+2. **Reusable metadata:** two catalogs, *position presets* (named lists of ATC positions)
+   and *featured fields* (named airport/ICAO tags), that can be reused across events.
+3. **Registration:** signed-in members request a position on an event, choosing a
+   start/end window and leaving optional notes.
+4. **Assignment and publishing:** staff assign registrants to positions and publish the
+   roster, which emails each assigned controller.
+5. **Archiving:** finished events are archived and hidden automatically.
 
 ## Key concepts
 
-- **Event** (`app/Models/Event.php`) — the core record. Carries a name, description, `start`/`end` timestamps, a `type`, an optional banner, an array of `featured_fields`, and an array of `presetPositions` (the positions copied from a preset at creation time). New banners are stored on Laravel's `public` disk under `event/`; the model also supports legacy `events/` paths. It derives the browser URL through that disk, so deployments can use the configured `public/storage` link or a public asset host.
-- **Event type** (`app/Enums/EventType.php`) — a string-backed enum cast on the `type` column. Cases:
-  - `HOME`
-  - `SUPPORT_REQUIRED`
-  - `SUPPORT_OPTIONAL`
-  - `GROUP_FLIGHT`
-  - `FRIDAY_NIGHT_OPERATIONS`
-  - `SATURDAY_NIGHT_OPERATIONS`
-  - `TRAINING`
-- **Featured field** (`app/Models/FeaturedField.php`) — a named tag (typically an airport ICAO such as `KMCO`) stored in the `featured_fields` table. Used as a picklist when creating/editing events.
-- **Position preset** (`app/Models/EventPositionPreset.php`) — a named, reusable list of ATC positions stored as JSON in the `event_position_preset` table. When an event is created you may pick a preset by name; its positions are copied onto the event's `presetPositions` column.
-- **Event position / registration** (`app/Models/EventPosition.php`) — one row in `event_positions` per member per event, holding the `requested_position`, an optional `assigned_position`, the requested `start`/`end` window, `notes`, and a `position_status` (defaults to `pending`). A unique constraint on `(user_id, event_id)` allows only one registration per member per event.
+- **Event** (`app/Models/Event.php`) is the core record. It has a `title`, an HTML
+  `description` (sanitized with Purify on save), `start`/`end` timestamps, a `type`, an
+  optional banner, an array of `featured_fields`, an array of `presetPositions` (the
+  event's position list), and four flags: `hidden`, `published`, `positions_locked`, and
+  `archived`.
+- **Event type** (`app/Enums/EventType.php`) is a string-backed enum on the `type` column:
+  `HOME`, `SUPPORT_REQUIRED`, `SUPPORT_OPTIONAL`, `GROUP_FLIGHT`,
+  `FRIDAY_NIGHT_OPERATIONS`, `SATURDAY_NIGHT_OPERATIONS`, `TRAINING`.
+- **Banner:** new uploads are stored on the `public` disk under `event/` as
+  `event_{id}.{ext}`. `Event::bannerStoragePath()` only returns paths under `event/` or
+  the legacy `events/` directory. The browser URL comes from the disk (`banner_url`
+  accessor), so a CDN or asset host works.
+- **Featured field** (`app/Models/FeaturedField.php`) is a named tag, usually an airport
+  ICAO such as `KMCO`, stored uppercased in `featured_fields`. It's the picklist for an
+  event's featured fields.
+- **Position preset** (`app/Models/EventPositionPreset.php`) is a named, reusable list of
+  ATC positions stored as JSON in `event_position_preset`. Its positions are *copied*
+  onto an event, either at creation or later from the positions page.
+- **Event position / registration** (`app/Models/EventPosition.php`) is one row in
+  `event_positions` per member per event. It holds what the member asked for
+  (`requested_position`, `start`/`end`, `notes`) and what staff assigned
+  (`assigned_position`, `assigned_start`/`assigned_end`, `position_status`), plus
+  `notified_at` to track whether the member has been emailed about their current
+  assignment.
+- **Flags:**
+  - `hidden`: the event isn't shown on the public calendar, and its page returns 404 to
+    anyone without `manage events`.
+  - `positions_locked`: the registration lock, which staff toggle to open or close
+    position requests. New events are locked by default.
+  - `published`: the assigned-positions roster is shown on the event page, and assigned
+    members are emailed.
+  - `archived`: the event is over. Archived events are always hidden.
 
 ## Data model
 
@@ -31,12 +60,12 @@ An **event** is a scheduled VATSIM activity (for example a Friday Night Operatio
 erDiagram
     events ||--o{ event_positions : "has (positionRequests)"
     users ||--o{ event_positions : "requests"
-    events }o--o{ featured_fields : "event_featured_field pivot"
+    events }o--o{ featured_fields : "event_featured_field pivot (unused)"
     event_position_preset ||..|| events : "positions copied to presetPositions (no FK)"
 
     events {
         bigint id PK
-        text name
+        string title
         text description
         timestamp start
         timestamp end
@@ -44,7 +73,11 @@ erDiagram
         json featured_fields
         json presetPositions
         boolean hidden
-        string image_url
+        boolean published
+        boolean positions_locked
+        boolean archived
+        timestamp archived_at
+        string event_image_route
         timestamps created_at_updated_at
     }
 
@@ -53,11 +86,14 @@ erDiagram
         bigint user_id FK
         bigint event_id FK
         string requested_position
-        string assigned_position
         timestamp start
         timestamp end
         text notes
+        string assigned_position
+        timestamp assigned_start
+        timestamp assigned_end
         string position_status
+        timestamp notified_at
         timestamps created_at_updated_at
     }
 
@@ -84,81 +120,188 @@ erDiagram
 
 Notes on the schema:
 
-- `event_positions` has a unique index on `(user_id, event_id)` and cascade-deletes when its parent `user` or `event` is deleted. `position_status` defaults to `pending` at the database level.
-- `event_position_preset` is singular (set via `$table` on the model). Its `positions` column is JSON and cast to an array.
-- `featured_fields.name` is unique. The `event_featured_field` pivot has a unique index on `(event_id, featured_field_id)` and cascade-deletes with either parent.
-- The events table has been reshaped across many migrations; the effective columns are those in the model's `$fillable`/`$casts` above. `featured_fields` and `presetPositions` are JSON columns cast to arrays, and `start`/`end` are cast to `datetime`.
+- `event_positions` has a unique index on `(user_id, event_id)` and cascade-deletes with
+  its user or event. `position_status` defaults to `pending` and becomes `assigned` when
+  staff save an assignment.
+- `events.published` defaults to `false`, and `events.positions_locked` defaults to
+  `true`.
+- `event_position_preset` is singular (set via `$table` on the model).
+- `featured_fields.name` is unique. The `event_featured_field` pivot exists but isn't used
+  (see Gotchas).
+- An `event_position_assignments` table and an empty `EventPositionAssignment` class also
+  exist from an earlier design. Nothing reads or writes them. Assignments live on
+  `event_positions`.
+- The events table has been reshaped by many migrations (for example `name` → `title`,
+  `image_url` → `event_image_route`). Use the model's `$fillable` and `$casts` as the
+  current column list.
 
 ## Flows
 
-### Create an event
+### 1. Create or edit an event
 
-1. Staff open `GET /admin/events/create` → `EventController::create()`, which renders `manage-events/create.blade.php`. The controller passes `EventType::cases()`, the featured-field names (`FeaturedField::orderBy('name')->pluck('name')`), and the preset names (`EventPositionPreset::orderBy('name')->pluck('name')`) into the view.
-2. The form POSTs to `POST /admin/events` → `EventController::store()`. Validation requires `name`, `description`, `start`, `end`, `type` (validated against `EventType`), and `featured_fields` (a string); `image_url` and `presetPositions` are optional.
-3. `store()` looks up the chosen preset by name (`EventPositionPreset::where('name', $presetName)->first()`) and copies its `positions` array onto the event's `presetPositions`. The `featured_fields` string is split on `, ` and trimmed into an array.
-4. The event is created and the user is redirected to `admin.events.index` (`EventController::manage()`, view `manage-events/index.blade.php`).
+1. Staff open `GET /admin/events/create` → `EventManagementController::create()`. If the
+   URL has `?staffing_request={id}`, the title and description are pre-filled from that
+   [staffing request](staffing-requests.md).
+2. The form posts to `POST /admin/events` → `store()`. Validation requires `title`,
+   `description`, `start`, `end` (at least 1 hour after `start`), and a valid `type`.
+   `featured_fields` is an optional comma-separated string. `presetPositions` is an
+   optional preset name that must exist. `image` is an optional banner: JPEG, PNG, GIF,
+   or WebP, up to 8 MB. SVG isn't allowed.
+3. The description is sanitized with Purify, the chosen preset's positions are copied
+   onto `presetPositions`, and the banner is stored with an extension taken from the
+   file's contents, not the uploaded filename.
+4. Editing (`GET /admin/events/{event}/edit`, `PUT /admin/events/{event}` →
+   `update()`) uses the same rules, except that the preset can't be changed there. A new
+   banner replaces the old file. Deleting (`DELETE /admin/events/{event}` →
+   `destroy()`) also deletes the banner.
 
-Editing (`EventController::edit()` / `update()`) works similarly, but `update()` validates `featured_fields` as an array whose values must be in the known featured-field names.
+### 2. Toggles on the admin list
 
-### Manage the featured-field and preset catalogs
+From `GET /admin/events` (`EventManagementController::index()`, `event-table`
+Livewire) and the per-event manage page (`GET /admin/events/{event}/manage`), staff can:
 
-- **Position presets** are a full resource under `EventPositionPresetController` (`admin.events.position-presets.*`). `store()`/`update()` take a comma-separated `positions` string, split and trim it, and save it as the JSON `positions` array. `PositionPresetTable` (Livewire) lists presets in the admin table view.
-- **Featured fields** are exposed through `EventFieldController`, but only `index()` is implemented (renders `event-fields/index.blade.php`); the other resource actions have no controller methods.
+- Toggle visibility: `PATCH /admin/events/{event}/visibility`. This is refused for
+  archived events.
+- Toggle archived: `PATCH /admin/events/{event}/archived` (see
+  [Archiving](#6-archiving)).
+- Toggle the registration lock: `PATCH /admin/events/{event}/positions-locked`.
 
-### A member requests a position
+The manage page also shows the registrants and the most-requested position.
 
-1. A logged-in member views a published event at `GET /events/{event}` → `EventController::show()` (view `events/show.blade.php`), which embeds the `event-registration` Livewire component.
-2. `EventRegistration::mount()` loads the event's `presetPositions` as the selectable position list and, if the member already has an `event_positions` row for this event, pre-fills the form and marks it submitted.
-3. On submit, the form POSTs to `POST /events/{event}/request-position` (route `events.request-position.store`, wired directly to `EventRegistration::store`, `auth` middleware). `store()` validates the selected position, optional notes (max 500), and a start/end window constrained to fall within the event's `start`/`end`, then creates an `event_positions` row for the current user with `position_status` defaulting to `pending`.
-4. A member can withdraw via `EventRegistration::destroy()`, which deletes their `event_positions` row.
+### 3. A member requests a position
 
-### Staff assign positions
+1. The public calendar (`GET /events`, `events-calendar` Livewire) shows non-hidden
+   events month by month. `GET /events/{event}` → `EventController::show()` shows one
+   event. Hidden or archived events return 404 unless the viewer has `manage events`.
+2. If the member is signed in and registration is open, the page embeds the
+   `event-registration` Livewire component. `mount()` loads the event's
+   `presetPositions` and pre-fills the form if the member already registered.
+3. `EventRegistration::store()` validates the position, optional notes (max 500), and a
+   start/end window inside the event's times and at least 30 minutes long. It then
+   creates the `event_positions` row with status `pending`. Times are entered and shown
+   in UTC.
+4. `EventRegistration::destroy()` withdraws the request by deleting the row.
 
-The `assigned_position` and `position_status` columns exist to let staff assign and approve requests. See the discrepancies section — the intended staff-assignment path is not fully wired.
+A member's own registrations are listed at `GET /users/{user}/registered-events`.
+Other users can see that page only if they have `assign event positions`.
+
+### 4. Staff manage the position list
+
+`GET /admin/events/{event}/positions` → `EventManagementController::positions()` embeds
+the `event-positions-management` component. Users with `assign event positions` get full
+access. Users with only `manage events` get a read-only view.
+
+- Add a position (uppercased and de-duplicated), remove a position, or replace the list
+  from a preset. Every change saves straight to `presetPositions`.
+- A position can't be removed while any registrant is assigned to it.
+
+### 5. Staff assign and publish
+
+The same positions page embeds the `event-registrants` component:
+
+1. Each registrant row starts with their requested times, and staff choose an assigned
+   position and times.
+2. **Save all** (`saveAll()`, requires `assign event positions`) only writes rows that
+   changed since the page loaded. Each saved row gets `position_status = assigned`.
+3. **Publish** (`publishPositions()`, requires `publish events`) sets `published = true`.
+   It then emails `EventPositionAssigned` to every assigned registrant with no
+   `notified_at`, and stamps `notified_at`. Publishing again doesn't re-email people who
+   have already been told.
+4. While the event is published, saving a changed assignment emails that registrant an
+   "assignment updated" version straight away. While it's unpublished, a change clears
+   `notified_at`, so the next publish emails them.
+5. **Unpublish** (`unpublishPositions()`) hides the roster from the event page again.
+
+When published, the event page shows the roster: every position in `presetPositions`,
+plus any assigned position no longer in that list, with the assigned controllers and
+times.
+
+### 6. Archiving
+
+Events are archived, not deleted, once they're over.
+
+- **Automatically:** the `ArchiveEvents` job (`app/Jobs/ArchiveEvents.php`) runs every
+  five minutes from `routes/console.php`. It finds events with no `archived_at` whose
+  `end` is at least 24 hours in the past and sets `archived = true`, `hidden = true`, and
+  `archived_at = now()`, in chunks of 100.
+- **Manually:** the archived toggle (`EventManagementController::toggleArchived()`)
+  archives an event straight away, or un-archives it. Un-archiving clears `archived` and
+  `archived_at` but leaves the event hidden.
+
+### 7. Catalogs
+
+- **Position presets** are a full resource under `EventPositionPresetController`
+  (`admin.events.position-presets.*`). `store()`/`update()` take a comma-separated
+  `positions` string and save it as the JSON array.
+- **Featured fields** (`EventFieldController`, `admin.events.event-fields.*`) support
+  list, add (uppercased, unique), and remove. A field can't be removed while any event's
+  `featured_fields` JSON still contains it.
 
 ## Permissions & middleware
 
-- **Public routes** (no auth): `GET /events` (`events.index`) and `GET /events/{event}` (`events.show`). The event route accepts only the numeric primary key used by the `events` table, so malformed external IDs resolve to a normal 404 rather than reaching PostgreSQL.
-- **Registration**: `POST /events/{event}/request-position` (`events.request-position.store`) requires `auth`.
-- **Admin / management**: all event management lives under the `admin` prefix, which requires `permission:view dashboard`. The Events department group additionally requires `permission:manage events` and contains:
-  - `event-fields` resource → `admin.events.event-fields.*`
-  - `position-presets` resource → `admin.events.position-presets.*`
-  - `GET /admin/events` → `admin.events.index`
-  - `GET /admin/events/create` → `admin.events.create`
-  - `POST /admin/events` → `admin.events.store`
-  - `GET /admin/events/{event}/edit` → `admin.events.edit`
-  - `PUT /admin/events/{event}` → `admin.events.update`
-  - `DELETE /admin/events/{event}` → `admin.events.destroy`
+| Route / action | Requirement |
+| --- | --- |
+| `GET /events`, `GET /events/{event}` | Public. Hidden or archived events need `manage events`. `{event}` must be numeric. |
+| Request or withdraw a position | Signed in (`auth`). |
+| `GET /users/{user}/registered-events` | The user themselves, or `assign event positions`. |
+| Everything under `/admin/events` | `admin` prefix (`view dashboard`) + `manage events` |
+| `GET /admin/events/{event}/positions` | Also needs `manage events` (read-only) or `assign event positions` (full). |
+| Edit the position list, save assignments | `assign event positions`, re-checked inside the Livewire actions. |
+| Publish / unpublish positions | `publish events`, re-checked inside the Livewire action. |
 
-Permissions are provided by `spatie/laravel-permission`; see `docs/authentication-authorization.md`.
+`PermissionSeeder` gives the `events` role `manage events`, `assign event positions`, and
+`publish events`. See [authentication & authorization](../authentication-authorization.md).
+
+## Background jobs & mail
+
+| Class | Trigger | Recipient |
+| --- | --- | --- |
+| `ArchiveEvents` (job) | Every five minutes | None |
+| `EventPositionAssigned` (mail) | Publish, or an assignment changed while published | The assigned registrant |
 
 ## Key files
 
 | Concern | File |
 | --- | --- |
-| Event CRUD controller | `app/Http/Controllers/EventController.php` |
-| Featured-field controller (index only) | `app/Http/Controllers/EventFieldController.php` |
-| Position-preset resource controller | `app/Http/Controllers/EventPositionPresetController.php` |
-| Position-assignment controller | `app/Http/Controllers/EventPositionAssignmentController.php` |
+| Public event controller | `app/Http/Controllers/Events/EventController.php` |
+| Admin event management (CRUD, visibility, archive, lock, positions page) | `app/Http/Controllers/Events/EventManagementController.php` |
+| Featured-field controller | `app/Http/Controllers/Events/EventFieldController.php` |
+| Position-preset resource controller | `app/Http/Controllers/Events/EventPositionPresetController.php` |
 | Event model | `app/Models/Event.php` |
 | Event position / registration model | `app/Models/EventPosition.php` |
 | Position preset model | `app/Models/EventPositionPreset.php` |
 | Featured field model | `app/Models/FeaturedField.php` |
 | Event type enum | `app/Enums/EventType.php` |
-| Registration UI (Livewire) | `app/Livewire/EventRegistration.php` |
+| Public calendar (Livewire) | `app/Livewire/EventsCalendar.php` |
+| Registration form (Livewire) | `app/Livewire/EventRegistration.php` |
+| Position list editor (Livewire) | `app/Livewire/EventPositionsManagement.php` |
+| Assignment and publishing (Livewire) | `app/Livewire/EventRegistrants.php` |
 | Admin events table (Livewire) | `app/Livewire/EventTable.php` |
 | Preset table (Livewire) | `app/Livewire/PositionPresetTable.php` |
-| Create-event component (Livewire) | `app/Livewire/CreateEvent.php` |
-| Routes | `routes/web.php` |
-| Public event views | `resources/views/events/` |
-| Admin event views | `resources/views/manage-events/` |
-| Preset views | `resources/views/position-presets/` |
-| Featured-field view | `resources/views/event-fields/` |
-| Events migrations | `database/migrations/*event*` |
+| Assignment email | `app/Mail/EventPositionAssigned.php`, `resources/views/mail/event-position-assigned.blade.php` |
+| Archiving job | `app/Jobs/ArchiveEvents.php` |
+| Views | `resources/views/events/`, `resources/views/livewire/event*.blade.php`, `resources/views/position-presets/`, `resources/views/event-fields/` |
+| Migrations | `database/migrations/*event*` |
 
 ## Gotchas
 
-- **Featured fields are stored two different ways.** Events persist their featured fields as a JSON array on the `events.featured_fields` column (populated from a comma-separated string in the create/edit forms). The `featured_fields` table, the `FeaturedField` model, and the `event_featured_field` pivot exist, but the `Event` model does not define a relationship to them — the many-to-many pivot is not used by the event-creation path. The catalog table is only read to build the featured-field picklist.
-- **Presets are copied, not linked.** When an event is created, the selected preset's positions are copied into `events.presetPositions`. There is no foreign key between an event and its preset; editing a preset later does not change events already created from it.
-- **`start`/`end` are required on registration and bounded by the event window.** Registration validation forces the requested window to fall inside the event's `start`/`end`.
-- **Only one registration per member per event.** Enforced by the unique `(user_id, event_id)` index on `event_positions`; a second `create()` for the same pair will fail at the database level.
+- **Livewire actions must check permissions themselves.** Livewire's update endpoint
+  doesn't run the page's route middleware, so `EventRegistrants` and
+  `EventPositionsManagement` re-check `assign event positions` / `publish events` in
+  every action that changes data. Do the same for any new action.
+- **Un-archiving a finished event doesn't stick.** `ArchiveEvents` selects on
+  `archived_at IS NULL`, and un-archiving clears `archived_at`. Any event whose `end` is
+  more than 24 hours ago is re-archived on the job's next run (within five minutes). To
+  bring an old event back, its `end` has to move into the last 24 hours or later.
+- **Featured fields are stored as JSON on the event.** `events.featured_fields` is a JSON
+  array filled from a comma-separated string in the forms. The `event_featured_field`
+  pivot and `FeaturedField::events()` exist but aren't used.
+- **Presets are copied, not linked.** Editing a preset later doesn't change events
+  already created from it. Reload it from the positions page instead.
+- **Registrations survive position changes.** A member's `requested_position` can name a
+  position that has since been removed from the event. Assigned positions are protected
+  from removal, but requests aren't.
+- **`CreateEvent` (Livewire) is unused scaffolding.** Its `save()` is empty, and events
+  are created through `EventManagementController::store()`.
+- **`EventPositionAssignmentController` is unrouted.** See
+  [discrepancies](../discrepancies.md) §5.6.

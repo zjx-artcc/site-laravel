@@ -1,6 +1,6 @@
 # Discrepancies & Known Issues
 
-This is a follow-up work queue produced during the repository documentation run. **Items resolved on the `fixes/discrepancies` branch have been removed from this list.** The original numbering is preserved, so gaps — no §3 or §4, and missing entries like 5.1–5.5, 5.16, 6.2, 6.5–6.9, 7.1 — mark items that have been fixed or dismissed. What remains below is still open.
+This is a follow-up work queue produced during the repository documentation run. **Items resolved on the `fixes/discrepancies` branch have been removed from this list.** The original numbering is preserved, so gaps — no §3 or §4, and missing entries like 5.1–5.5, 5.7–5.9, 5.12–5.16, 6.2, 6.5–6.9, 7.1, 7.11 — mark items that have been fixed or dismissed. What remains below is still open.
 
 Each entry lists **where** it is, **why it matters**, and a **suggested fix**. Severity is a rough triage aid, not a formal assessment. Verify each against current code before acting — line-level details may have shifted.
 
@@ -37,22 +37,14 @@ These are functional defects found while documenting. Grouped by system. (Traini
 ### Events
 > Events is a work in progress — these are left for that effort, not fixed here.
 
-- **5.6 `EventPositionAssignmentController::store()` is unrouted and buggy.** No route references it (`routes/web.php`), and it validates `position_id` but then reads `$data['position_name']` (never validated), so it would throw even if wired. Consequently there is **no working "staff assigns a position" path** — `assigned_position`/`position_status` are never written beyond the DB default. **Fix:** decide whether staff assignment is a feature; if so, implement and route it correctly; if not, delete the controller.
-- **5.7 `EventPositionPresetController` redirects to a nonexistent route name.** `store()`/`update()`/`destroy()` redirect to `position-presets.index`, but the resource is named `admin.events.position-presets`, so the real name is `admin.events.position-presets.index`. These redirects throw `RouteNotFoundException`. **Fix:** use the fully-qualified route name.
-- **5.8 `EventFieldController` only implements `index()` but is a full resource.** `event-fields` is registered as `Route::resource`, so create/store/edit/update/destroy hit missing methods. **Fix:** restrict the resource to `->only(['index'])` or implement the actions.
-- **5.9 `EventRegistration::store()` has duplicate array keys.** The `EventPosition::create([...])` call lists `requested_position`, `start`, `end`, `notes` twice; PHP keeps the last occurrence, so the *validated* values are silently discarded in favor of the raw component properties. **Fix:** remove the duplicate keys and keep the validated values.
+(5.7–5.9 have since been fixed in the events work.)
+
+- **5.6 `EventPositionAssignmentController::store()` is unrouted and buggy.** No route references it (`routes/web.php`), and it validates `position_id` but then reads `$data['position_name']` (never validated), so it would throw even if wired. Staff assignment is now handled by the `EventRegistrants` Livewire component, writing to `event_positions`, so this controller (and the empty `EventPositionAssignment` model and unused `event_position_assignments` table) are leftovers. **Fix:** delete the controller and model, and drop the table in a new migration.
 
 ### Visiting controllers
 - **5.10 `visit.update` route has no controller method.** `PUT /admin/visit-requests/{visitRequest}` → `VisitFacilityController@update`, but there is no `update()` method → 500. **Fix:** implement or remove the route.
 - **5.11 `manage.blade.php` branches on nonexistent `$request->approved`.** `VisitorRequest` has no `approved` column/cast/accessor (status is the `VisitRequestStatus` enum), so the expression is always falsy and the list never shows Approved/Denied states. **Fix:** branch on `status`.
 
-### Certifications
-> Certifications has an open PR merging soon — these are expected to be resolved there.
-
-- **5.12 `UserCertification` references a nonexistent FK column.** `app/Models/UserCertification.php` `$fillable` and `certificationLevel()` use `facility_certification_level_id`, but the migration column (and composite-PK member) is `certification_level_id`. The relationship cannot resolve. **Fix:** rename the model references to `certification_level_id`.
-- **5.13 Certification display on the roster is broken.** `resources/views/roster/index.blade.php` uses `$user->certifications->where('facility_id', …)` (no `facility_id` on `UserCertification`) and `$cert->level->identifier` (the relation is `certificationLevel`, not `level`, and `CertificationLevel` has `abbreviation`, not `identifier`). **Fix:** correct the relation/attribute names once 5.12 is resolved.
-- **5.14 `certification-level-row` Livewire component does not exist.** `resources/views/livewire/certification-levels-table.blade.php` renders `@livewire('certification-level-row', …)`, but no such class/view exists → render failure. **Fix:** create the component or change the table to not reference it.
-- **5.15 No write path for `user_certifications`.** No controller, route, Livewire component, or seeder ever creates/deletes rows in `user_certifications`. The data model exists but user certifications cannot be granted or revoked through the app. **Fix:** build the grant/revoke UI, or document it as an intentionally external/DB-only process.
 
 ---
 
@@ -60,16 +52,16 @@ These are functional defects found while documenting. Grouped by system. (Traini
 
 (6.2 and 6.5–6.9 were fixed on the `fixes/discrepancies` branch; 6.3 was confirmed correct — `training_type` is a VATUSA typeset, not a rating.)
 
-### 6.1 — `FeaturedField::events()` targets the wrong pivot table
+### 6.1 — Featured fields are dual-modeled (JSON column + unused pivot)
 > Events WIP — left for that effort.
-- **Where:** `app/Models/FeaturedField.php` uses `event_featured_fields` (plural); the migration creates `event_featured_field` (singular).
-- **Why it matters:** The relationship breaks if invoked. Separately, `Event` defines *no* relationship to `FeaturedField` — events store featured fields in the `events.featured_fields` **JSON column** instead, so the `featured_fields` table and `event_featured_field` pivot are effectively orphaned (the table is only read to build a picklist). Featured fields are dual-modeled (table + JSON).
-- **Suggested fix:** Decide on one model (JSON vs relational). If keeping the pivot, fix the table name and add the `Event` side; if not, drop the unused table/pivot.
+- **Where:** `app/Models/FeaturedField.php` `events()` now names the correct `event_featured_field` pivot, but `Event` defines *no* relationship to `FeaturedField` and nothing writes the pivot.
+- **Why it matters:** Events store featured fields in the `events.featured_fields` **JSON column**, so the pivot is orphaned and the `featured_fields` table is only a picklist. Two models of the same data invite drift.
+- **Suggested fix:** Decide on one model (JSON vs relational). If keeping the pivot, add the `Event` side and write to it; if not, drop the pivot and `FeaturedField::events()`.
 
-### 6.4 — `User::events()` pivot column name mismatch
+### 6.4 — `EventPosition::events()` is a nonsensical relationship
 > Events WIP — left for that effort.
-- **Where:** `app/Models/User.php` `events()` uses `->withPivot('…','note',…)`; the `event_positions` column is `notes` (plural). Also `EventPosition::events()` declares `belongsToMany(Event)`, which is nonsensical for a row that belongs to one event via `event_id` and appears unused.
-- **Suggested fix:** Use `notes`; remove the unused `belongsToMany`.
+- **Where:** `app/Models/EventPosition.php` declares `events()` as `belongsToMany(Event)`, but a registration row belongs to exactly one event via `event_id` (`event()`). It appears unused. (The earlier `note`/`notes` pivot mismatch in `User::events()` has been fixed.)
+- **Suggested fix:** Remove the unused `belongsToMany`.
 
 ---
 
@@ -77,16 +69,15 @@ These are functional defects found while documenting. Grouped by system. (Traini
 
 (7.1, the unrouted `ProfileController`, was removed on the `fixes/discrepancies` branch.)
 
-- **7.2 `CreateEvent` Livewire component is a stub and unused.** `app/Livewire/CreateEvent.php` has an empty `save()`, hardcoded `featuredFieldsOptions` (`['KMCO','KJAX','KDAB']`), and no Blade references it. Real event creation goes through `EventController::store()`. (Events WIP.)
+- **7.2 `CreateEvent` Livewire component is a stub and unused.** `app/Livewire/CreateEvent.php` has an empty `save()`, hardcoded `featuredFieldsOptions` (`['KMCO','KJAX','KDAB']`), and no Blade references it. Real event creation goes through `EventManagementController::store()`. (Events WIP.)
 - **7.3 `VatusaRole` DTO is empty.** `app/DTOs/VatusaRole.php` contains only a namespace declaration; facility roles are parsed inline in `VatusaFacilityInfoDTO`.
 - **7.4 `Welcome` mailable has no production trigger.** `app/Mail/Welcome.php` is only instantiated by the dev-only `/test-email` route; nothing sends it on first login.
-- **7.5 `SyncTrainingTickets` is never scheduled.** `routes/console.php` schedules only `SyncRoster` and `UpdateOnlineControllers`. `SyncTrainingTickets` runs only via the dev-only `/sync-training` route, so in production nothing pushes training tickets to VATUSA automatically. Confirm whether that is intended.
+- **7.5 `SyncTrainingTickets` is never scheduled.** `routes/console.php` doesn't schedule it. `SyncTrainingTickets` runs only via the dev-only `/sync-training` route, so in production nothing pushes training tickets to VATUSA automatically. Confirm whether that is intended.
 - **7.6 `zeptomail` mailer transport has no driver.** `config/mail.php` defines a `zeptomail` mailer with `'transport' => 'zeptomail'`, but no package provides it and nothing calls `Mail::extend('zeptomail', …)`. Setting `MAIL_MAILER=zeptomail` would fail. ZeptoMail is actually reached via the standard `smtp` mailer. Remove the dead entry or wire a real transport.
 - **7.7 Inertia SSR leftovers.** `composer.json` has `dev:ssr` (`npm run build:ssr`, `php artisan inertia:start-ssr`), but Inertia is not a dependency and `package.json` has no `build:ssr`. Starter-kit residue.
 - **7.8 Volt is effectively unused.** `livewire/volt` is installed and `app/Providers/VoltServiceProvider.php` mounts `resources/views/livewire` and `resources/views/pages` (the latter does not exist), but every component is class-based under `app/Livewire/`. Consider removing Volt if unused.
 - **7.9 Commented-out Socialite registration.** `app/Providers/AppServiceProvider.php` has an older `Socialite::extend('vatsim', …)` block commented above the active one. Delete it.
 - **7.10 Test placeholders / starter stubs.** `tests/Pest.php` still defines a stub `function something()`; `tests/Unit/ExampleTest.php` and `tests/Feature/ExampleTest.php` are starter placeholders. Remove.
-- **7.11 Unused event view.** `resources/views/events/manage.blade.php` appears unused — `EventController::manage()` returns `manage-events.index`. (Events WIP.)
 
 ---
 

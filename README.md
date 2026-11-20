@@ -36,6 +36,14 @@ For the full picture, start with [`docs/architecture.md`](docs/architecture.md).
 | Certifications | [`docs/systems/certifications.md`](docs/systems/certifications.md) |
 | Users & profiles | [`docs/systems/users-and-profiles.md`](docs/systems/users-and-profiles.md) |
 | Audit logging | [`docs/systems/audit-logging.md`](docs/systems/audit-logging.md) |
+| Feedback | [`docs/systems/feedback.md`](docs/systems/feedback.md) |
+| Leave of absence (LOA) | [`docs/systems/loas.md`](docs/systems/loas.md) |
+| Staffing requests | [`docs/systems/staffing-requests.md`](docs/systems/staffing-requests.md) |
+| ATC bookings (controller schedule) | [`docs/systems/atc-bookings.md`](docs/systems/atc-bookings.md) |
+| Site content (news, publications, FAQs) | [`docs/systems/site-content.md`](docs/systems/site-content.md) |
+| Contributors | [`docs/systems/contributors.md`](docs/systems/contributors.md) |
+| Sector map | [`docs/systems/sector-map.md`](docs/systems/sector-map.md) |
+| Controller statistics | [`docs/systems/statistics.md`](docs/systems/statistics.md) |
 | Known issues & follow-ups | [`docs/discrepancies.md`](docs/discrepancies.md) |
 
 ## Getting started

@@ -114,9 +114,11 @@ Routing structure at a glance:
 - **Admin area** (`/admin`, gated by `permission:view dashboard`): the dashboard plus
   nested groups each with their own permission or role gate — user management, visiting
   controllers (`permission:manage visiting controllers`), facilities data
-  (`permission:manage statistics prefixes`, `permission:manage certification facilities`),
-  audit logs (`permission:view audit logs`), training (`role:training`), and events
-  (`permission:manage events`).
+  (`permission:manage statistics prefixes`, `permission:certification-facilities:write`),
+  audit logs (`permission:view audit logs`), training (`role:training`), events
+  (`permission:manage events`), and the content and review areas (news, FAQs, feedback,
+  LOAs, staffing requests, publications, contributors, roster purge). The full map is in
+  [authentication & authorization](authentication-authorization.md#route-middleware-map).
 - **Dev-only routes**: `/sync`, `/sync-training`, and `/test-email` are registered only
   in the `local` and `development` environments for manually dispatching jobs and previewing
   mail.

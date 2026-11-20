@@ -30,9 +30,16 @@ need to add auditing to a model or work on the audit-log viewer.
 | `TrainingAssignment` | `app/Models/TrainingAssignment.php` | `user_id`, `instructor_id`, `status` |
 | `TrainingTicket` | `app/Models/TrainingTicket.php` | `user_id`, `instructor_id`, `session_date`, `duration`, `movements`, `score`, `notes`, `location`, `ots_status` |
 | `StatisticsPrefixes` | `app/Models/StatisticsPrefixes.php` | `name` |
+| `Loa` | `app/Models/Loa.php` | `user_id`, `start_date`, `end_date`, `status`, `response` |
+| `Faq` | `app/Models/Faq.php` | `category`, `question`, `answer`, `sort_order`, `is_published` |
+| `FaqSetting` | `app/Models/FaqSetting.php` | `key`, `value` |
+| `Publication` | `app/Models/Publication.php` | `name`, `description`, `publication_category_id`, `original_filename` |
+| `PublicationCategory` | `app/Models/PublicationCategory.php` | `title`, `description`, `display_order`, `show_in_nav` |
 
-All four use `LogOptions::defaults()`, so only the listed attributes are logged
-and (by Spatie's defaults) empty diffs are not recorded.
+All of these use `LogOptions::defaults()`, so only the listed attributes are logged
+and (by Spatie's defaults) empty diffs are not recorded. `Publication` and
+`PublicationCategory` also chain `logOnlyDirty()`, so their update entries hold only the
+attributes that actually changed. `Loa` deliberately leaves out the free-text `reason`.
 
 ### The `activity_log` table
 
@@ -120,6 +127,9 @@ So a viewer must have both `view dashboard` and `view audit logs`.
 | `app/Models/TrainingAssignment.php` | `getActivitylogOptions()` for training assignments |
 | `app/Models/TrainingTicket.php` | `getActivitylogOptions()` for training tickets |
 | `app/Models/StatisticsPrefixes.php` | `getActivitylogOptions()` for statistics prefixes |
+| `app/Models/Loa.php` | `getActivitylogOptions()` for LOAs |
+| `app/Models/Faq.php`, `app/Models/FaqSetting.php` | `getActivitylogOptions()` for FAQs and FAQ settings |
+| `app/Models/Publication.php`, `app/Models/PublicationCategory.php` | `getActivitylogOptions()` for publications and categories |
 | `database/migrations/2025_11_11_035813_create_activity_log_table.php` | Base `activity_log` table |
 | `database/migrations/2025_11_11_035814_add_event_column_to_activity_log_table.php` | Adds `event` column |
 | `database/migrations/2025_11_11_035815_add_batch_uuid_column_to_activity_log_table.php` | Adds `batch_uuid` column |
