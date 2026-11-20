@@ -199,9 +199,13 @@ the web container never migrates).
 
 ### Scheduler
 
-- `routes/console.php` registers two scheduled jobs:
+- `routes/console.php` registers five scheduled jobs:
   - `SyncRoster` — every two hours (`everyTwoHours()`).
   - `UpdateOnlineControllers` — every minute (`everyMinute()`).
+  - `ExpireLoas` — daily (`daily()`).
+  - `ArchiveEvents` — every five minutes (`everyFiveMinutes()`).
+  - `SyncVatsimSessions` — every six hours (`everySixHours()`), dispatched from a
+    `Schedule::call` closure.
 - These only fire if Laravel's scheduler runs. `entrypoint.sh` does not start it, so a
   cron entry or a dedicated container must invoke `php artisan schedule:run` every
   minute (or run `php artisan schedule:work` as a long-lived process).
