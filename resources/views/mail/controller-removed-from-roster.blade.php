@@ -7,5 +7,5 @@
 
     <p>Reason: <strong>{{ $reason }}</strong></p>
 
-    <p>If you have questions or wish to appeal this, please contact <strong><a href="mailto:atm@zjxartcc.org">atm@zjxartcc.org</a></strong></p>
+    <p>If you have questions or wish to appeal this, please contact <strong><a href="mailto:{{ strtolower(config('app.vatusa_facility')) }}-atm@vatusa.net">{{ strtolower(config('app.vatusa_facility')) }}-atm@vatusa.net</a></strong></p>
 @endsection
